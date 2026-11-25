@@ -1,0 +1,43 @@
+{
+  "name": "stacklens-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Call-tree tracing for Node.js backends (NestJS, Express, TypeORM) with a trace analyser UI",
+  "license": "MIT",
+  "packageManager": "npm@10.9.3",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "workspaces": [
+    "packages/types",
+    "packages/tracer",
+    "apps/server",
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "npm run build:packages && npm run build -w stacklens",
+    "build:packages": "npm run build -w @stacklens/types && npm run build -w @stacklens/tracer",
+    "dev": "npm run build:packages && npm run dev -w stacklens",
+    "start": "npm run start -w stacklens",
+    "typecheck": "npm run build -w @stacklens/types && npm run typecheck --workspaces --if-present",
+    "lint": "eslint . && npm run lint -w stacklens",
+    "lint:fix": "eslint . --fix && npm run lint -w stacklens -- --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test --workspaces --if-present",
+    "example:express": "npm run start -w @stacklens-examples/express-basic",
+    "example:nest": "npm run start -w @stacklens-examples/nestjs-typeorm",
+    "traffic": "node scripts/generate-traffic.mjs",
+    "docker:build": "docker build -f docker/Dockerfile -t stacklens:local .",
+    "clean": "rm -rf packages/*/dist apps/server/.next apps/server/dist"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "^10.1.0",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.56.0"
+  }
+}

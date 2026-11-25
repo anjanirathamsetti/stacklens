@@ -1,0 +1,14 @@
+{
+  "name": "@stacklens-examples/express-basic",
+  "private": true,
+  "version": "0.1.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@stacklens/tracer": "0.1.0",
+    "express": "^4.21.2"
+  },
+  "description": "Plain JavaScript Express API traced with autoInstrument()"
+}
