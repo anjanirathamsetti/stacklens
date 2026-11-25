@@ -4,6 +4,14 @@
   "version": "0.1.0",
   "description": "Call-tree tracing for Node.js backends (NestJS, Express, TypeORM) with a trace analyser UI",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anjanirathamsetti/stacklens.git"
+  },
+  "homepage": "https://github.com/anjanirathamsetti/stacklens#readme",
+  "bugs": {
+    "url": "https://github.com/anjanirathamsetti/stacklens/issues"
+  },
   "packageManager": "npm@10.9.3",
   "engines": {
     "node": ">=22.12"

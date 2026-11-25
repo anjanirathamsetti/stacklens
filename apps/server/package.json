@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "description": "StackLens server: trace collector and analyser UI for Node.js backends. Run with `npx stacklens` or Docker.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anjanirathamsetti/stacklens.git",
+    "directory": "apps/server"
+  },
+  "homepage": "https://github.com/anjanirathamsetti/stacklens/tree/main/apps/server#readme",
+  "bugs": {
+    "url": "https://github.com/anjanirathamsetti/stacklens/issues"
+  },
   "keywords": [
     "tracing",
     "observability",

@@ -1,8 +1,17 @@
 {
   "name": "@stacklens/tracer",
   "version": "0.1.0",
-  "description": "Drop-in call-tree tracing for Node.js backends – NestJS, Express and TypeORM",
+  "description": "Drop-in call-tree tracing for Node.js backends \u2013 NestJS, Express and TypeORM",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anjanirathamsetti/stacklens.git",
+    "directory": "packages/tracer"
+  },
+  "homepage": "https://github.com/anjanirathamsetti/stacklens/tree/main/packages/tracer#readme",
+  "bugs": {
+    "url": "https://github.com/anjanirathamsetti/stacklens/issues"
+  },
   "keywords": [
     "tracing",
     "observability",
