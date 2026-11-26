@@ -7,18 +7,44 @@ import { env } from './env';
 import { insertIncidentRows } from './repositories/incident-repository';
 import { insertTraces } from './repositories/trace-repository';
 import { summarize } from './trace-summary';
+import { maybeSendScheduledDigest } from './services/digest-service';
+import { hashPassword } from './auth/password';
+import { audit, countUsers, createFirstAdmin, pruneSessions } from './repositories/account-repository';
 
 const RETENTION_LOCK = 7_041_913;
 const g = globalThis as unknown as { __stacklensMaintenance?: NodeJS.Timeout };
 
-/** Start the retention job (every minute) and the one-time legacy import. Idempotent. */
+/** Start the minute loop (retention, scheduled digest) and the one-time legacy import. Idempotent. */
 export function startMaintenance(db: Db): void {
   if (g.__stacklensMaintenance) return;
-  const run = () => applyRetention(db).catch((e) => console.warn('[stacklens] retention failed:', (e as Error).message));
+  const run = () => {
+    applyRetention(db).catch((e) => console.warn('[stacklens] retention failed:', (e as Error).message));
+    maybeSendScheduledDigest().catch((e) => console.warn('[stacklens] digest failed:', (e as Error).message));
+    pruneSessions().catch(() => {});
+  };
   g.__stacklensMaintenance = setInterval(run, 60_000);
   g.__stacklensMaintenance.unref?.();
   setTimeout(run, 5_000).unref?.();
   importLegacyJson(db).catch((e) => console.warn('[stacklens] legacy import failed:', (e as Error).message));
+  bootstrapAdmin().catch((e) => console.warn('[stacklens] admin bootstrap failed:', (e as Error).message));
+}
+
+/** STACKLENS_ADMIN_EMAIL + STACKLENS_ADMIN_PASSWORD create the first admin when there are no accounts. */
+export async function bootstrapAdmin(): Promise<void> {
+  const { email, password } = env.bootstrapAdmin;
+  if (!email || !password) {
+    if ((await countUsers()) === 0)
+      console.warn(
+        '[stacklens] no accounts yet: the first person to open /welcome becomes admin. ' +
+          'On a reachable server, set STACKLENS_ADMIN_EMAIL and STACKLENS_ADMIN_PASSWORD instead.',
+      );
+    return;
+  }
+  const user = await createFirstAdmin({ email, name: email.split('@')[0], passwordHash: await hashPassword(password) });
+  if (user) {
+    await audit(null, 'setup.admin_bootstrapped', user.email);
+    console.log(`[stacklens] created admin ${user.email} from STACKLENS_ADMIN_EMAIL`);
+  }
 }
 
 /**

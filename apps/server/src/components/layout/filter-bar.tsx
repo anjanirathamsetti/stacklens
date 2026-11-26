@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/input';
 import { Tooltip } from '@/components/ui/tooltip';
 import { TimeRangePicker } from '@/components/layout/time-range-picker';
+import { ShareMenu, ViewsMenu } from '@/components/layout/view-controls';
 import { useLive } from '@/components/layout/providers';
 import { useFilters } from '@/lib/url-filters';
 import { cn } from '@/lib/utils';
@@ -125,6 +126,7 @@ export function FilterBar({ onRefresh, children }: { onRefresh?: () => void; chi
       )}
       {children}
       <div className="ml-auto flex items-center gap-2">
+        <ViewsMenu />
         {range.kind === 'absolute' && (
           <>
             <Tooltip content="Zoom out (double the window)">
@@ -161,6 +163,7 @@ export function FilterBar({ onRefresh, children }: { onRefresh?: () => void; chi
             )}
           </Button>
         </Tooltip>
+        <ShareMenu />
         {onRefresh && (
           <Tooltip content="Refresh now">
             <Button variant="outline" size="icon" onClick={onRefresh}>

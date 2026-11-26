@@ -1,5 +1,6 @@
 import { getDb } from '@/server/db/client';
 import { TRACES_CHANNEL } from '@/server/repositories/trace-repository';
+import { withAuth } from '@/server/auth/guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * Server-sent events: tells the UI when new traces arrive. Backed by PostgreSQL LISTEN/NOTIFY, so it
  * works across server replicas (ingest on one, UI connected to another).
  */
-export async function GET(req: Request) {
+export const GET = withAuth('viewer', async (req: Request) => {
   const db = await getDb();
   const encoder = new TextEncoder();
   let cleanup = () => {};
@@ -41,4 +42,4 @@ export async function GET(req: Request) {
   return new Response(stream, {
     headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive' },
   });
-}
+});

@@ -99,6 +99,104 @@ export const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       );
     `,
   },
+  {
+    id: 2,
+    name: 'saved views, slos, app config',
+    sql: /* sql */ `
+      -- named filter presets shared by the whole team
+      create table saved_views (
+        id          text primary key,
+        name        text not null,
+        path        text not null,                  -- page, e.g. /traces
+        query       text not null default '',       -- URL query string without the leading ?
+        description text,
+        pinned      boolean not null default false, -- shown in the sidebar
+        created_by  text,
+        created_at  timestamptz not null default now(),
+        updated_at  timestamptz not null default now()
+      );
+      create index saved_views_pinned_idx on saved_views (pinned, name);
+
+      -- per-route service level objectives
+      create table slos (
+        id                  text primary key,
+        name                text not null,
+        application         text not null,
+        method              text,                    -- null = any method
+        route               text not null,
+        latency_ms          double precision not null,
+        latency_target      double precision not null, -- fraction of requests faster than latency_ms
+        availability_target double precision not null, -- fraction of requests without a server error
+        window_days         integer not null,
+        created_at          timestamptz not null default now(),
+        updated_at          timestamptz not null default now()
+      );
+
+      -- team-wide configuration documents (digest, ai, mcp)
+      create table app_config (
+        key        text primary key,
+        value      jsonb not null,
+        updated_at timestamptz not null default now()
+      );
+    `,
+  },
+  {
+    id: 3,
+    name: 'users, sessions, api keys, audit log',
+    sql: /* sql */ `
+      create table users (
+        id             text primary key,
+        email          text not null,
+        name           text not null,
+        role           text not null check (role in ('admin', 'member', 'viewer')),
+        password_hash  text not null,
+        disabled       boolean not null default false,
+        must_change_password boolean not null default false,
+        created_at     timestamptz not null default now(),
+        updated_at     timestamptz not null default now(),
+        last_login_at  timestamptz
+      );
+      create unique index users_email_idx on users (lower(email));
+
+      -- only a SHA-256 of the session token is stored; the token itself lives in the cookie
+      create table sessions (
+        token_hash   text primary key,
+        user_id      text not null references users (id) on delete cascade,
+        created_at   timestamptz not null default now(),
+        expires_at   timestamptz not null,
+        last_seen_at timestamptz not null default now(),
+        user_agent   text,
+        ip           text
+      );
+      create index sessions_user_idx on sessions (user_id);
+      create index sessions_expires_idx on sessions (expires_at);
+
+      -- keys used by instrumented apps to send traces
+      create table api_keys (
+        id           text primary key,
+        name         text not null,
+        prefix       text not null,       -- first characters, shown in the UI to recognise a key
+        key_hash     text not null unique,
+        scope        text not null default 'ingest',
+        created_by   text references users (id) on delete set null,
+        created_at   timestamptz not null default now(),
+        last_used_at timestamptz,
+        revoked_at   timestamptz
+      );
+
+      create table audit_log (
+        id          bigserial primary key,
+        at          timestamptz not null default now(),
+        actor_id    text,
+        actor_email text,
+        action      text not null,
+        target      text,
+        details     jsonb not null default '{}'::jsonb,
+        ip          text
+      );
+      create index audit_log_at_idx on audit_log (at desc);
+    `,
+  },
 ];
 
 const LOCK_ID = 7_041_912; // arbitrary, stable

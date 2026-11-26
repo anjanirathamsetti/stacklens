@@ -10,6 +10,7 @@ export async function GET() {
     await db.query('select 1');
     return Response.json({ status: 'ok', version: pkg.version, uptimeSec: Math.round(process.uptime()), database: db.kind });
   } catch (e) {
-    return Response.json({ status: 'error', version: pkg.version, error: (e as Error).message }, { status: 503 });
+    console.warn('[stacklens] health check failed:', (e as Error).message);
+    return Response.json({ status: 'error', version: pkg.version, database: 'unreachable' }, { status: 503 });
   }
 }

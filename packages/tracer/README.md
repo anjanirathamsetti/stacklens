@@ -53,6 +53,7 @@ app.use(stacklens.express());
 | `project` | `default` | `STACKLENS_PROJECT` |
 | `environment` | `NODE_ENV` | `STACKLENS_ENV` |
 | `endpoint` | `http://localhost:4300/api/ingest` | `STACKLENS_ENDPOINT` |
+| `apiKey` | – (sent as `Authorization: Bearer …`; needed when the server requires a key) | `STACKLENS_API_KEY` |
 | `enabled` | `true` | `STACKLENS_ENABLED` |
 | `sampleRate` | `1` | |
 | `captureArgs` / `captureResults` / `inferTypes` / `captureConsole` | `true` | |

@@ -2,7 +2,7 @@ import 'server-only';
 /**
  * Incident management – ServiceNow integration.
  *
- * Real mode (when SERVICENOW_INSTANCE + credentials are set, e.g. in apps/dashboard/.env.local):
+ * Real mode (when SERVICENOW_INSTANCE + credentials are set, e.g. in apps/server/.env.local):
  *   uses the ServiceNow Table API (`/api/now/table/incident`). Every incident StackLens creates carries
  *   `correlation_id = stacklens:<errorGroupId>`, which is how tickets are tied back to error groups –
  *   including tickets someone later edits directly in ServiceNow.
@@ -161,9 +161,13 @@ export async function listIncidents(force = false): Promise<{ source: IncidentSo
   }
 }
 
+/** ServiceNow sys_ids are 32 hex characters; anything else could smuggle operators into an encoded query. */
+const SYS_ID = /^[0-9a-f]{32}$/i;
+
 export async function getIncident(sysId: string): Promise<Incident | undefined> {
   const src = source();
   if (src.mode === 'demo') return getLocalIncident(sysId);
+  if (!SYS_ID.test(sysId)) return undefined;
   const j = await sn(
     `/api/now/table/incident/${encodeURIComponent(sysId)}?sysparm_display_value=all&sysparm_exclude_reference_link=true&sysparm_fields=${FIELDS}`,
   );
@@ -283,6 +287,8 @@ export async function updateIncident(sysId: string, a: IncidentAction): Promise<
     inc.updatedAt = now;
     return saveLocalIncident(inc);
   }
+  if (!SYS_ID.test(sysId)) return undefined;
+
   const body =
     a.action === 'note'
       ? { work_notes: a.text }

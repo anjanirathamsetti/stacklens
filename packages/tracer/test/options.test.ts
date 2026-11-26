@@ -18,6 +18,12 @@ describe('resolveOptions', () => {
   it('defaults to the local server', () => {
     expect(resolveOptions({}, {}).endpoint).toBe('http://localhost:4300/api/ingest');
   });
+
+  it('reads the API key from options or STACKLENS_API_KEY', () => {
+    expect(resolveOptions({}, {}).apiKey).toBeUndefined();
+    expect(resolveOptions({}, { STACKLENS_API_KEY: 'slk_env' }).apiKey).toBe('slk_env');
+    expect(resolveOptions({ apiKey: 'slk_opt' }, { STACKLENS_API_KEY: 'slk_env' }).apiKey).toBe('slk_opt');
+  });
 });
 
 describe('cachedMatcher', () => {

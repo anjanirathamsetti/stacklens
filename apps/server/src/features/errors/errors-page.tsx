@@ -1,5 +1,6 @@
 'use client';
 import { Suspense, startTransition, useCallback, useEffect, useState } from 'react';
+import { useCan } from '@/lib/current-user';
 import Link from 'next/link';
 import { Bug, ChevronRight, Search, ShieldCheck, Siren, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import { IncidentChip } from '@/features/incidents/components/incident-badges';
 import { CreateIncidentDialog } from '@/features/incidents/components/create-incident-dialog';
 import { Pagination, TableShell, filterKeyOf, usePaged } from '@/components/data-display/pagination';
 import { PageHeader } from '@/components/layout/page-header';
+import { SummarizeErrorsButton } from '@/features/ai/components/ai-entry-points';
 import { FilterBar } from '@/components/layout/filter-bar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -37,6 +39,7 @@ function ErrorsInner() {
   const [groups, setGroups] = useState<ErrorGroup[] | null>(null);
   const [search, setSearch] = useState('');
   const [createFor, setCreateFor] = useState<string | null>(null);
+  const canWrite = useCan('member');
   const [source, setSource] = useState<IncidentSource>();
   useEffect(() => {
     fetch('/api/incidents?limit=1')
@@ -59,7 +62,9 @@ function ErrorsInner() {
 
   return (
     <>
-      <PageHeader title="Errors" description="Exceptions grouped by where they were thrown" />
+      <PageHeader title="Errors" description="Exceptions grouped by where they were thrown">
+        <SummarizeErrorsButton />
+      </PageHeader>
       <FilterBar onRefresh={load} />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
         <TableShell
@@ -150,7 +155,7 @@ function ErrorsInner() {
                         <Link href={`/incidents?selected=${g.incident.sysId}`}>
                           <IncidentChip number={g.incident.number} stateCode={g.incident.stateCode} state={g.incident.state} />
                         </Link>
-                      ) : (
+                      ) : canWrite ? (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -159,6 +164,8 @@ function ErrorsInner() {
                         >
                           <Siren /> Create
                         </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="pr-3">

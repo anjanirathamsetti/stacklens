@@ -6,6 +6,7 @@ import { AlertOctagon, ChevronDown, ChevronUp, ExternalLink, ListTree, Loader2, 
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { CopyButton, JsonView } from '@/components/data-display/json-view';
+import { TraceShareMenu } from './trace-share-menu';
 import { AppBadge, MethodBadge, OutcomeBadge, StatusCodeBadge } from '@/components/data-display/trace-badges';
 import { KIND_SHORT } from '@/features/traces/components/call-tree';
 import { buildTree, errorOrigins } from '@/lib/span-tree';
@@ -167,6 +168,11 @@ export function TraceSheet({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-0.5">
+              {traceId && (
+                <span className="mr-1">
+                  <TraceShareMenu traceId={traceId} title={trace ? `${http?.method ?? ''} ${http?.route ?? trace.name}`.trim() : traceId} />
+                </span>
+              )}
               <Tooltip content="Previous trace (↑ / k)">
                 <button
                   disabled={!onPrev}

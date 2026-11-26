@@ -11,7 +11,7 @@ const config = [
       'react-hooks/set-state-in-effect': 'warn',
     },
   },
-  { ignores: ['.next/**', '.next-*/**', 'next-env.d.ts'] },
+  { ignores: ['.next/**', '.next-*/**', '*.nosync/**', 'next-env.d.ts'] },
 ];
 
 export default config;

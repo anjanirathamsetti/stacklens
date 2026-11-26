@@ -188,3 +188,201 @@ export interface IncidentSource {
   instance?: string;
   error?: string;
 }
+
+/* ----------------------------- Saved views ----------------------------- */
+
+export interface SavedView {
+  id: string;
+  name: string;
+  /** page the view opens, e.g. `/traces` */
+  path: string;
+  /** URL query string without the leading `?` */
+  query: string;
+  description?: string;
+  /** shown in the sidebar */
+  pinned: boolean;
+  createdBy?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/* --------------------------------- SLOs -------------------------------- */
+
+export interface SloInput {
+  name: string;
+  application: string;
+  /** undefined = any method */
+  method?: string;
+  route: string;
+  /** a request is "fast" when it finishes within this many ms */
+  latencyMs: number;
+  /** fraction of requests that must be fast, e.g. 0.95 */
+  latencyTarget: number;
+  /** fraction of requests that must not fail with a server error, e.g. 0.999 */
+  availabilityTarget: number;
+  windowDays: number;
+}
+
+export interface Slo extends SloInput {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type SloState = 'healthy' | 'at-risk' | 'breached' | 'no-data';
+
+export interface SloObjective {
+  target: number;
+  /** good / total over the window (1 when there is no traffic) */
+  attained: number;
+  bad: number;
+  /** share of the error budget still unspent; negative once the objective is missed */
+  budgetLeft: number;
+  /** how fast the budget burned over the last hour (1 = exactly on budget) */
+  burnRate1h: number;
+}
+
+export interface SloStatus extends Slo {
+  state: SloState;
+  total: number;
+  p95: number;
+  latency: SloObjective;
+  availability: SloObjective;
+  /** one point per day of the window, oldest first */
+  daily: { day: number; total: number; fast: number; available: number }[];
+}
+
+/* -------------------------------- Digest ------------------------------- */
+
+export interface DigestRoute {
+  application: string;
+  method?: string;
+  route: string;
+  count: number;
+  errors: number;
+  p95: number;
+  /** p95 in the period before, when there was traffic */
+  previousP95?: number;
+}
+
+export interface Digest {
+  from: number;
+  to: number;
+  generatedAt: number;
+  totals: Totals;
+  previous: Totals;
+  /** error groups first seen in this period */
+  newErrors: ErrorGroup[];
+  topErrors: ErrorGroup[];
+  slowestRoutes: DigestRoute[];
+  /** routes whose p95 grew the most compared with the period before */
+  regressions: DigestRoute[];
+  busiestRoutes: DigestRoute[];
+  slos: SloStatus[];
+}
+
+export interface DigestConfig {
+  enabled: boolean;
+  /** local hour of day (0–23) the digest is sent, in `timezone` */
+  hour: number;
+  timezone: string;
+  /** Slack incoming webhook or any URL that accepts a JSON POST */
+  webhookUrl: string;
+  /** 'slack' formats the message with Slack blocks; 'json' posts the raw digest */
+  format: 'slack' | 'json';
+  /** limit the digest to one project (empty = all) */
+  project: string;
+  lastSentAt?: number;
+  lastError?: string;
+}
+
+/* ------------------------- AI & MCP (UI layout) ------------------------ */
+
+export type AiProvider = 'anthropic' | 'openai' | 'azure-openai' | 'bedrock' | 'ollama' | 'openai-compatible';
+export type AiFeatureId = 'explain-failure' | 'incident-draft' | 'nl-search' | 'explain-slowdown' | 'generate-tests' | 'error-summary';
+
+export interface AiConfig {
+  enabled: boolean;
+  provider: AiProvider;
+  model: string;
+  /** for self-hosted / compatible endpoints */
+  baseUrl: string;
+  features: Record<AiFeatureId, boolean>;
+  privacy: {
+    /** run the tracer's redaction again on the server before sending */
+    redact: boolean;
+    /** send argument / return values (otherwise only names, types and timings) */
+    includeValues: boolean;
+    /** extra keys to mask, comma separated */
+    extraRedactKeys: string;
+    maxSpans: number;
+  };
+  /** monthly spend cap in USD, 0 = no cap */
+  monthlyBudgetUsd: number;
+}
+
+export type McpToolId =
+  | 'search_traces'
+  | 'get_trace'
+  | 'get_span'
+  | 'list_error_groups'
+  | 'get_error_group'
+  | 'get_hotspots'
+  | 'get_metrics'
+  | 'list_slos'
+  | 'list_incidents';
+
+export interface McpConfig {
+  enabled: boolean;
+  tools: Record<McpToolId, boolean>;
+  /** restrict what clients can read (empty = everything) */
+  projects: string[];
+  /** strip argument / return values from tool results */
+  redactPayloads: boolean;
+  maxResults: number;
+}
+
+/* ------------------------------- Accounts ------------------------------ */
+
+export type Role = 'admin' | 'member' | 'viewer';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  disabled: boolean;
+  mustChangePassword: boolean;
+  createdAt: number;
+  lastLoginAt?: number;
+}
+
+export interface ApiKeyInfo {
+  id: string;
+  name: string;
+  /** first characters of the key, e.g. `slk_9f3a` */
+  prefix: string;
+  scope: 'ingest';
+  createdBy?: string;
+  createdAt: number;
+  lastUsedAt?: number;
+  revokedAt?: number;
+}
+
+export interface AuditEntry {
+  id: number;
+  at: number;
+  actorEmail?: string;
+  action: string;
+  target?: string;
+  details: Record<string, unknown>;
+  ip?: string;
+}
+
+export interface SecurityConfig {
+  /** reject trace batches without a valid API key */
+  requireIngestKey: boolean;
+  /** how long a login lasts without activity */
+  sessionDays: number;
+  minPasswordLength: number;
+}

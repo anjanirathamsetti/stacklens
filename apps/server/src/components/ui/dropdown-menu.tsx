@@ -27,7 +27,7 @@ export function DropdownMenuItem({ className, inset, ...props }: React.Component
   return (
     <M.Item
       className={cn(
-        'group relative flex h-8 cursor-pointer select-none items-center gap-2.5 rounded-md px-2 text-sm outline-none transition-colors',
+        'group relative flex min-h-8 cursor-pointer select-none items-center gap-2.5 rounded-md px-2 py-1.5 text-sm outline-none transition-colors',
         'text-foreground/90 data-[highlighted]:bg-accent data-[highlighted]:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         '[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground data-[highlighted]:[&_svg]:text-foreground',
         inset && 'pl-8',

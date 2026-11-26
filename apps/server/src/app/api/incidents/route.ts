@@ -1,11 +1,12 @@
 import { createIncident, listIncidents, source } from '@/server/incident-service';
 import { errorEvents, getErrorGroups } from '@/server/repositories/trace-repository';
 import { parseQuery } from '@/server/parse-query';
+import { withAuth } from '@/server/auth/guard';
 
 export const dynamic = 'force-dynamic';
 
 /** Incidents tagged by StackLens, enriched with live stats of the error group they track. */
-export async function GET(req: Request) {
+export const GET = withAuth('viewer', async (req: Request) => {
   const { source: src, incidents } = await listIncidents();
   const q = parseQuery(req.url);
   const { groups } = await getErrorGroups({ ...q, from: q.from ?? Date.now() - 7 * 86_400_000 });
@@ -38,9 +39,9 @@ export async function GET(req: Request) {
   const tracked = new Set(incidents.filter((i) => i.errorId && i.stateCode < 6).map((i) => i.errorId));
   const untracked = groups.filter((g) => !tracked.has(g.id)).slice(0, 20);
   return Response.json({ source: src, incidents: enriched, untracked });
-}
+});
 
-export async function POST(req: Request) {
+export const POST = withAuth('member', async (req: Request) => {
   let body: any;
   try {
     body = await req.json();
@@ -62,4 +63,4 @@ export async function POST(req: Request) {
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 502 });
   }
-}
+});

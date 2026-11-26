@@ -1,4 +1,5 @@
 import 'server-only';
+import fs from 'node:fs';
 import path from 'node:path';
 import { env } from '../env';
 
@@ -92,6 +93,8 @@ export async function createPostgres(url: string): Promise<Db> {
 
 export async function createEmbedded(dataDir?: string): Promise<Db> {
   const { PGlite } = await import('@electric-sql/pglite');
+  // PGlite only creates the last folder level; create the parents (e.g. a fresh STACKLENS_DATA_DIR)
+  if (dataDir) fs.mkdirSync(path.dirname(dataDir), { recursive: true });
   const pg = dataDir ? await PGlite.create(dataDir) : await PGlite.create();
   return {
     kind: 'embedded',

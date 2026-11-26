@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Siren } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { DraftWithAiButton } from '@/features/ai/components/ai-entry-points';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
 import { PriorityBadge } from '@/features/incidents/components/incident-badges';
@@ -107,7 +108,10 @@ export function CreateIncidentDialog({
               <Input value={short} maxLength={160} onChange={(e) => setShort(e.target.value)} />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-xs font-medium">Description</span>
+              <span className="flex items-center justify-between text-xs font-medium">
+                Description
+                <DraftWithAiButton />
+              </span>
               <textarea
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}

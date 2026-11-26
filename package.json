@@ -23,7 +23,7 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "npm run build:packages && npm run build -w stacklens",
+    "build": "node scripts/dev-guard.mjs && npm run build:packages && npm run build -w stacklens",
     "build:packages": "npm run build -w @stacklens/types && npm run build -w @stacklens/tracer",
     "dev": "npm run build:packages && npm run dev -w stacklens",
     "start": "npm run start -w stacklens",
