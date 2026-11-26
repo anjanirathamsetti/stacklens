@@ -3,6 +3,7 @@ import { AlertOctagon, ArrowDownToLine, ArrowRight, ArrowUpFromLine, Info, Scrol
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { KindBadge, StatusCodeBadge } from '@/components/data-display/trace-badges';
+import { GenerateTestButton } from '@/features/ai/components/ai-entry-points';
 import { CopyButton, JsonView, toPlain } from '@/components/data-display/json-view';
 import { cn, errorStatus, formatMs, KIND_META, SEVERITY, severityOf } from '@/lib/utils';
 import type { SpanNode } from '@/lib/span-tree';
@@ -351,6 +352,7 @@ export function SpanDetails({
             </div>
           </div>
           <div className="flex shrink-0 items-center">
+            {!isRoot && <GenerateTestButton functionName={span.name} />}
             <CopyButton text={span.name} />
             {onClose && (
               <button

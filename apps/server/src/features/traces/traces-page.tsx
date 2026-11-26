@@ -1,7 +1,9 @@
 'use client';
 import { Suspense, startTransition, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCan } from '@/lib/current-user';
 import { AlertTriangle, Search, Trash2, Inbox, X, Activity, Timer, Gauge, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { AskAiButton } from '@/features/ai/components/ai-entry-points';
 import { FilterBar } from '@/components/layout/filter-bar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -154,6 +156,7 @@ function TracesInner() {
   }, [key, load]);
   useLiveRefresh(load, live && pg.page === 1);
 
+  const isAdmin = useCan('admin');
   const clear = async () => {
     if (!confirm('Delete all captured traces? This cannot be undone.')) return;
     await fetch('/api/traces', { method: 'DELETE' });
@@ -167,11 +170,14 @@ function TracesInner() {
   return (
     <>
       <PageHeader title="Traces" description="Every request with its complete internal call tree">
-        <Tooltip content="Delete all traces">
-          <Button variant="outline" size="icon-sm" onClick={clear}>
-            <Trash2 />
-          </Button>
-        </Tooltip>
+        <AskAiButton />
+        {isAdmin && (
+          <Tooltip content="Delete all traces">
+            <Button variant="outline" size="icon-sm" onClick={clear}>
+              <Trash2 />
+            </Button>
+          </Tooltip>
+        )}
       </PageHeader>
       <FilterBar onRefresh={load} />
 

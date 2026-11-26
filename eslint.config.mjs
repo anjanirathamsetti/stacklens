@@ -7,7 +7,16 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['apps/server/**', '**/node_modules/**', '**/dist/**', '**/.next/**', '**/.next-*/**', '**/next-env.d.ts', '**/coverage/**'],
+    ignores: [
+      'apps/server/**',
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.next/**',
+      '**/.next-*/**',
+      '**/*.nosync/**',
+      '**/next-env.d.ts',
+      '**/coverage/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

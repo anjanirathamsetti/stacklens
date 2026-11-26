@@ -1,10 +1,11 @@
 import { env } from '@/server/env';
 import { storageInfo } from '@/server/repositories/trace-repository';
 import { source } from '@/server/incident-service';
+import { withAuth } from '@/server/auth/guard';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export const GET = withAuth('admin', async () => {
   return Response.json({
     storage: {
       ...(await storageInfo()),
@@ -18,4 +19,4 @@ export async function GET() {
       publicUrl: env.publicUrl ?? null,
     },
   });
-}
+});

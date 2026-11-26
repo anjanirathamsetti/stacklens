@@ -55,4 +55,21 @@ export const env = {
     category: str('SERVICENOW_CATEGORY') ?? 'software',
     closeCode: str('SERVICENOW_CLOSE_CODE') ?? 'Solution provided',
   },
+
+  /**
+   * Trust X-Forwarded-For / X-Real-IP for the client address (rate limits, audit log). Only enable
+   * behind a reverse proxy that overwrites these headers – otherwise clients can spoof them.
+   */
+  trustProxy: str('STACKLENS_TRUST_PROXY') === '1' || str('STACKLENS_TRUST_PROXY') === 'true',
+
+  /** Optional first admin, created at startup when no account exists (handy for Docker / CI). */
+  bootstrapAdmin: {
+    email: str('STACKLENS_ADMIN_EMAIL'),
+    password: str('STACKLENS_ADMIN_PASSWORD'),
+  },
+
+  ai: {
+    /** API key for the AI provider chosen in the UI. Kept server-side only; the UI only learns whether it is set. */
+    apiKey: str('STACKLENS_AI_API_KEY'),
+  },
 } as const;

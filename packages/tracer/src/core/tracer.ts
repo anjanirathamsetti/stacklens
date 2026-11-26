@@ -23,7 +23,11 @@ export class Tracer {
   opts: ResolvedOptions;
   limits!: SerializeLimits;
   isIgnoredMethod!: (name: string) => boolean;
-  private readonly exporter = new HttpExporter({ endpoint: () => this.opts.endpoint, debug: () => this.opts.debug });
+  private readonly exporter = new HttpExporter({
+    endpoint: () => this.opts.endpoint,
+    apiKey: () => this.opts.apiKey,
+    debug: () => this.opts.debug,
+  });
 
   constructor() {
     this.opts = resolveOptions({});

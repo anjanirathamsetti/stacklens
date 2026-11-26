@@ -1,8 +1,9 @@
 import { getSummary, getTrace, pageTraces } from '@/server/repositories/trace-repository';
+import { withAuth } from '@/server/auth/guard';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export const GET = withAuth('viewer', async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
   const trace = await getTrace(id);
   if (!trace) {
@@ -20,4 +21,4 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     return Response.json({ error: 'expired', summary, newerTraceId: sameError?.id ?? newer?.id }, { status: 410 });
   }
   return Response.json(trace);
-}
+});

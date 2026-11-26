@@ -40,6 +40,8 @@ import { ancestorsOf, buildTree, errorOrigins, type SpanNode } from '@/lib/span-
 import { cn, formatDateTime, formatMs, KIND_META, SEVERITY, severityOf } from '@/lib/utils';
 import { useSettings } from '@/lib/settings-context';
 import { OutcomeBadge } from '@/components/data-display/trace-badges';
+import { TraceShareMenu } from '@/features/traces/components/trace-share-menu';
+import { ExplainFailurePanel, ExplainSlowdownPanel } from '@/features/ai/components/ai-entry-points';
 import type { SpanKind, TraceRecord, TraceSummary } from '@/lib/api-types';
 
 interface LinkedIncident {
@@ -123,7 +125,7 @@ function TraceDetail({ id }: { id: string }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState('');
   const [tab, setTab] = useState<InspectorTab>('input');
-  const timeFormat = useSettings().settings.timeFormat;
+  const { timeFormat, thresholds } = useSettings().settings;
   const [incidents, setIncidents] = useState<LinkedIncident[]>([]);
   const [expired, setExpired] = useState<{ summary: TraceSummary; newerTraceId?: string } | null>(null);
 
@@ -310,6 +312,12 @@ function TraceDetail({ id }: { id: string }) {
             {trace.id.slice(0, 10)}…
             <CopyButton text={trace.id} />
           </span>
+          <TraceShareMenu
+            traceId={trace.id}
+            title={`${http?.method ?? ''} ${http?.route ?? trace.name}`.trim()}
+            spanId={selected?.parentId ? selected.id : undefined}
+            spanName={selected?.name}
+          />
         </div>
       </header>
 
@@ -385,6 +393,8 @@ function TraceDetail({ id }: { id: string }) {
                 <LayerBreakdown nodes={nodes} duration={trace.duration} />
               </div>
             </Card>
+
+            {outcome !== 'ok' ? <ExplainFailurePanel /> : trace.duration >= thresholds.p95Warn ? <ExplainSlowdownPanel /> : null}
 
             {/* Explorer */}
             <Card className="overflow-hidden">

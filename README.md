@@ -49,6 +49,8 @@ app.use(stacklens.express());
 
 **3. Open http://localhost:4300**
 
+On first run you create the admin account. Then add teammates in **Admin → Users**.
+
 ## Features
 
 - **Traces:** sortable, paginated request log with a detail panel (timings, request details, input, response, errors, slowest calls). The full call tree has a waterfall, flame graph and per-call Input/Output inspector.
@@ -56,7 +58,9 @@ app.use(stacklens.express());
 - **Errors:** exceptions grouped by where they were thrown. Client (4xx) and server errors are told apart.
 - **Incidents:** ServiceNow tickets linked to error groups, with regression detection. A local demo mode works without an instance.
 - **Hotspots:** every function aggregated by calls, latency and self time.
-- **Filters:** project, application, environment, user, and a CloudWatch-style time picker. All filter state lives in the URL.
+- **Filters:** project, application, environment, user, and a CloudWatch-style time picker. All filter state lives in the URL. Saved views and share links keep them handy.
+- **SLOs and daily digest:** per-route latency and availability objectives with error budgets, and a daily summary that can post to Slack.
+- **Accounts and Admin:** sign-in with admin, member and viewer roles. The Admin area manages users, ingest API keys, security, team settings (AI, MCP, integrations, data) and an audit log.
 - **PostgreSQL storage:** traces, errors, incidents and user settings live in PostgreSQL (set `DATABASE_URL`), or in an embedded PostgreSQL for zero-config local use. Live updates use LISTEN/NOTIFY, so it scales to several replicas.
 
 ## Repository layout

@@ -15,7 +15,7 @@ import { PriorityBadge, StateBadge } from '@/features/incidents/components/incid
 import { CreateIncidentDialog } from '@/features/incidents/components/create-incident-dialog';
 import { Pagination, TableShell, filterKeyOf, usePaged } from '@/components/data-display/pagination';
 import { useFilters, useLiveRefresh } from '@/lib/url-filters';
-import { useSettings } from '@/lib/settings-context';
+import { useCan, useCurrentUser } from '@/lib/current-user';
 import { cn, SEVERITY, timeAgo } from '@/lib/utils';
 import type { ErrorGroup, Incident, IncidentSource, SpanKind } from '@/lib/api-types';
 
@@ -84,7 +84,7 @@ function SourceBanner({ source }: { source?: IncidentSource }) {
         <div className="max-w-xs space-y-1">
           <div className="font-medium">Demo mode</div>
           <div className="text-muted-foreground">
-            Tickets are stored locally. To sync with ServiceNow, copy <code className="font-mono">apps/dashboard/.env.example</code> to{' '}
+            Tickets are stored locally. To sync with ServiceNow, copy <code className="font-mono">apps/server/.env.example</code> to{' '}
             <code className="font-mono">.env.local</code> and set SERVICENOW_INSTANCE plus credentials, then restart the dashboard.
           </div>
         </div>
@@ -98,7 +98,8 @@ function SourceBanner({ source }: { source?: IncidentSource }) {
 }
 
 function IncidentPanel({ row, onClose, onChanged }: { row: Row; onClose: () => void; onChanged: () => void }) {
-  const author = useSettings().settings.profile.name;
+  const author = useCurrentUser().user.name;
+  const canWrite = useCan('member');
   const [detail, setDetail] = useState<Incident | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -163,12 +164,12 @@ function IncidentPanel({ row, onClose, onChanged }: { row: Row; onClose: () => v
               </Button>
             </a>
           )}
-          {inc.stateCode === 1 && (
+          {canWrite && inc.stateCode === 1 && (
             <Button size="sm" variant="outline" disabled={!!busy} onClick={() => act({ action: 'start' }, 'start')}>
               {busy === 'start' ? <Loader2 className="animate-spin" /> : <Play />} Start work
             </Button>
           )}
-          {inc.stateCode < 6 && (
+          {canWrite && inc.stateCode < 6 && (
             <Button
               size="sm"
               variant="outline"
@@ -253,7 +254,8 @@ function IncidentPanel({ row, onClose, onChanged }: { row: Row; onClose: () => v
             <Input
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Add a work note…"
+              placeholder={canWrite ? 'Add a work note…' : 'Viewers can’t add work notes'}
+              disabled={!canWrite}
               onKeyDown={(e) => e.key === 'Enter' && note.trim() && act({ action: 'note', text: note }, 'note')}
             />
             <Button
@@ -295,6 +297,7 @@ function IncidentsInner() {
   const [tab, setTab] = useState<'open' | 'resolved' | 'all'>('open');
   const [search, setSearch] = useState('');
   const [createFor, setCreateFor] = useState<string | null>(null);
+  const canWrite = useCan('member');
   const selectedId = sp.get('selected');
 
   const load = useCallback(() => {
@@ -464,9 +467,11 @@ function IncidentsInner() {
                           {g.count} events · {g.users} users · {g.applications.join(', ')}
                         </div>
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => setCreateFor(g.id)}>
-                        <Siren /> Ticket
-                      </Button>
+                      {canWrite && (
+                        <Button size="sm" variant="outline" onClick={() => setCreateFor(g.id)}>
+                          <Siren /> Ticket
+                        </Button>
+                      )}
                     </div>
                   );
                 })}

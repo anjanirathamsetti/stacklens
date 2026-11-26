@@ -4,6 +4,8 @@ import { traceContext } from './context';
 
 export interface HttpExporterOptions {
   endpoint: () => string;
+  /** sent as `Authorization: Bearer …` when set */
+  apiKey?: () => string | undefined;
   debug: () => boolean;
   /** Send as soon as this many traces are queued. */
   batchSize?: number;
@@ -52,15 +54,23 @@ export class HttpExporter {
     if (!this.queue.length) return;
     const batch = this.queue.splice(0, this.queue.length);
     const endpoint = this.opts.endpoint();
+    const apiKey = this.opts.apiKey?.();
     // run outside any trace so the request isn't attributed to a user span
     await traceContext.exit(async () => {
       try {
         const res = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: apiKey
+            ? { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` }
+            : { 'content-type': 'application/json' },
           body: `{"traces":[${batch.join(',')}]}`,
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok)
+          throw new Error(
+            res.status === 401
+              ? `HTTP 401 – ${apiKey ? 'API key rejected' : 'the server requires an API key (set STACKLENS_API_KEY)'}`
+              : `HTTP ${res.status}`,
+          );
         this.warned = false;
       } catch (e) {
         if (this.opts.debug() && !this.warned) {

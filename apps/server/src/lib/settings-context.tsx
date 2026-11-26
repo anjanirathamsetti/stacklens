@@ -3,14 +3,14 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { useTheme } from 'next-themes';
 
 /**
- * Per-browser preferences: profile, KPI thresholds, defaults and UI state.
+ * Personal preferences: KPI thresholds, defaults and UI state. (Name, email and role live on the
+ * account – see current-user.tsx.)
  *
- * Source of truth is the server (`user_settings` table via /api/user-settings, keyed by an
- * anonymous cookie). localStorage is only a cache so the first paint already uses the user's
+ * Source of truth is the server (`user_settings` table via /api/user-settings, keyed by the
+ * signed-in user). localStorage is only a cache so the first paint already uses the user's
  * preferences; changes are saved back to the server, debounced.
  */
 export interface Settings {
-  profile: { name: string; email: string; role: string };
   thresholds: {
     /** Error rate (fraction) at which the KPI turns amber / red. */
     errorWarn: number;
@@ -23,17 +23,18 @@ export interface Settings {
   timeFormat: '24h' | '12h';
   ui: {
     sidebarCollapsed: boolean;
+    /** sidebar groups the user folded away */
+    closedNavGroups: string[];
     live: boolean;
     theme: 'light' | 'dark' | 'system';
   };
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  profile: { name: 'Local user', email: '', role: 'Developer' },
   thresholds: { errorWarn: 0.01, errorBad: 0.05, p95Warn: 300, p95Bad: 1000 },
   defaultRange: '1h',
   timeFormat: '12h',
-  ui: { sidebarCollapsed: false, live: true, theme: 'system' },
+  ui: { sidebarCollapsed: false, closedNavGroups: [], live: true, theme: 'system' },
 };
 
 const CACHE_KEY = 'stacklens.settings';
@@ -46,7 +47,6 @@ function merge(raw: unknown): Settings {
   return {
     ...DEFAULT_SETTINGS,
     ...s,
-    profile: { ...DEFAULT_SETTINGS.profile, ...s.profile },
     thresholds: { ...DEFAULT_SETTINGS.thresholds, ...s.thresholds },
     ui: { ...DEFAULT_SETTINGS.ui, ...s.ui },
   };

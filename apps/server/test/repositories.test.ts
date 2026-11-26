@@ -28,6 +28,26 @@ import {
   storageInfo,
   TRACES_CHANNEL,
 } from '@/server/repositories/trace-repository';
+import { createView, deleteView, listViews, updateView } from '@/server/repositories/view-repository';
+import { createSlo, knownRoutes, sloStatus } from '@/server/repositories/slo-repository';
+import { getConfig, patchConfig, saveConfig } from '@/server/repositories/config-repository';
+import { buildDigest } from '@/server/services/digest-service';
+import { hashPassword, verifyPassword } from '@/server/auth/password';
+import {
+  audit,
+  countActiveAdmins,
+  createApiKey,
+  createFirstAdmin,
+  createSession,
+  createUser,
+  deleteUserSessions,
+  getUserWithHash,
+  listAudit,
+  revokeApiKey,
+  updateUser,
+  userForSession,
+  verifyApiKey,
+} from '@/server/repositories/account-repository';
 import { makeTrace } from './fixtures';
 
 /** What survives a JSON round-trip (jsonb drops `undefined` fields). */
@@ -100,7 +120,9 @@ describe.each(backends)('$name', ({ setup, notify }) => {
   });
   beforeEach(async () => {
     setDbForTesting(db);
-    await db.exec('truncate traces, incidents, user_settings, stacklens_meta cascade');
+    await db.exec(
+      'truncate traces, incidents, user_settings, stacklens_meta, saved_views, slos, app_config, users, sessions, api_keys, audit_log cascade',
+    );
   });
 
   describe('traces', () => {
@@ -315,6 +337,193 @@ describe.each(backends)('$name', ({ setup, notify }) => {
       await importLegacyJson(db); // second run is a no-op
       expect((await pageTraces({})).total).toBe(2);
       for (const f of fs.readdirSync(dir)) fs.rmSync(path.join(dir, f), { recursive: true, force: true });
+    });
+  });
+  describe('saved views', () => {
+    it('creates, pins, updates and deletes; strips paging from the query', async () => {
+      const v = await createView({
+        name: ' Checkout errors ',
+        path: '/traces',
+        query: 'app=shop&status=5xx&page=3&selected=t1',
+        pinned: true,
+      });
+      expect(v).toMatchObject({ name: 'Checkout errors', query: 'app=shop&status=5xx', pinned: true });
+      await createView({ name: 'Another', path: '/errors', query: '' });
+      expect((await listViews()).map((x) => x.name)).toEqual(['Checkout errors', 'Another']); // pinned first
+      const u = await updateView(v.id, { pinned: false, description: 'for on-call' });
+      expect(u).toMatchObject({ pinned: false, description: 'for on-call', query: 'app=shop&status=5xx' });
+      expect(await deleteView(v.id)).toBe(true);
+      expect(await deleteView(v.id)).toBe(false);
+      expect(await listViews()).toHaveLength(1);
+    });
+  });
+
+  describe('slos', () => {
+    it('computes attainment, error budget and daily points', async () => {
+      const now = Date.now();
+      const traces = [
+        ...Array.from({ length: 90 }, (_, i) =>
+          makeTrace({ route: '/orders', method: 'POST', duration: 50, startTime: now - 2 * 3_600_000 - i * 1000 }),
+        ),
+        ...Array.from({ length: 8 }, (_, i) =>
+          makeTrace({ route: '/orders', method: 'POST', duration: 900, startTime: now - 2 * 3_600_000 - i * 1000 }),
+        ),
+        ...Array.from({ length: 2 }, (_, i) =>
+          makeTrace({
+            route: '/orders',
+            method: 'POST',
+            status: 500,
+            error: { name: 'Error', message: 'boom' },
+            startTime: now - 60_000 - i,
+          }),
+        ),
+        makeTrace({ route: '/orders', method: 'GET', duration: 5000, startTime: now - 1000 }), // other method: ignored
+      ];
+      await ingestTraces(traces);
+      const slo = await createSlo({
+        name: 'Orders',
+        application: 'orders-api',
+        method: 'POST',
+        route: '/orders',
+        latencyMs: 300,
+        latencyTarget: 0.95,
+        availabilityTarget: 0.99,
+        windowDays: 7,
+      });
+      const st = await sloStatus(slo, now);
+      expect(st.total).toBe(100);
+      expect(st.latency.attained).toBeCloseTo(0.92, 5); // 8 of 100 slower than 300ms
+      expect(st.latency.bad).toBe(8);
+      expect(st.latency.budgetLeft).toBeCloseTo(1 - 8 / 5, 5); // 5 slow requests allowed
+      expect(st.availability.bad).toBe(2);
+      expect(st.availability.budgetLeft).toBeCloseTo(-1, 5); // 1 failure allowed per 100; 2 happened
+      expect(st.state).toBe('breached');
+      expect(st.availability.burnRate1h).toBeGreaterThan(1);
+      expect(st.daily.reduce((a, d) => a + d.total, 0)).toBe(100);
+      expect((await knownRoutes()).some((r) => r.route === '/orders' && r.method === 'POST')).toBe(true);
+    });
+
+    it('reports no-data without traffic', async () => {
+      const slo = await createSlo({
+        name: 'Idle',
+        application: 'x',
+        route: '/idle',
+        latencyMs: 100,
+        latencyTarget: 0.9,
+        availabilityTarget: 0.9,
+        windowDays: 1,
+      });
+      const st = await sloStatus(slo);
+      expect(st).toMatchObject({ state: 'no-data', total: 0 });
+      expect(st.latency.budgetLeft).toBe(1);
+    });
+  });
+
+  describe('app config', () => {
+    it('merges with defaults and keeps server-maintained fields', async () => {
+      expect((await getConfig('ai')).enabled).toBe(false);
+      const saved = await saveConfig('ai', { enabled: true, features: { 'nl-search': false }, junk: 1 });
+      expect(saved.enabled).toBe(true);
+      expect(saved.features['nl-search']).toBe(false);
+      expect(saved.features['explain-failure']).toBe(true);
+      expect(saved).not.toHaveProperty('junk');
+      await patchConfig('digest', { lastSentAt: 123 });
+      await saveConfig('digest', { enabled: true, lastSentAt: 999 });
+      const d = await getConfig('digest');
+      expect(d.enabled).toBe(true);
+      expect(d.lastSentAt).toBe(123);
+    });
+
+    it('keeps stored fields that a partial save leaves out', async () => {
+      await saveConfig('security', { sessionDays: 3, minPasswordLength: 12 });
+      const saved = await saveConfig('security', { requireIngestKey: true });
+      expect(saved).toMatchObject({ requireIngestKey: true, sessionDays: 3, minPasswordLength: 12 });
+    });
+  });
+
+  describe('digest', () => {
+    it('finds new errors and latency regressions against the previous period', async () => {
+      const now = Date.now();
+      const day = 86_400_000;
+      const old = makeTrace({
+        route: '/old',
+        status: 500,
+        error: { name: 'Error', message: 'old failure' },
+        startTime: now - day - 3_600_000,
+      });
+      const prev = Array.from({ length: 6 }, (_, i) => makeTrace({ route: '/slow', duration: 50, startTime: now - day - 60_000 - i }));
+      const cur = Array.from({ length: 6 }, (_, i) => makeTrace({ route: '/slow', duration: 400, startTime: now - 60_000 - i }));
+      const again = makeTrace({ route: '/old', status: 500, error: { name: 'Error', message: 'old failure' }, startTime: now - 120_000 });
+      const fresh = makeTrace({ route: '/new', status: 500, error: { name: 'TypeError', message: 'brand new' }, startTime: now - 30_000 });
+      await ingestTraces([old, ...prev, ...cur, again, fresh]);
+      const d = await buildDigest({ from: now - day, to: now });
+      expect(d.totals.total).toBe(8);
+      expect(d.previous.total).toBe(7);
+      expect(d.newErrors.map((e) => e.message)).toEqual(['brand new']);
+      expect(d.topErrors).toHaveLength(2);
+      expect(d.regressions.map((r) => r.route)).toEqual(['/slow']);
+      expect(d.regressions[0].previousP95).toBeCloseTo(50, 0);
+    });
+  });
+  describe('accounts', () => {
+    it('hashes passwords with scrypt and verifies them', async () => {
+      const h = await hashPassword('correct horse battery');
+      expect(h.startsWith('scrypt$')).toBe(true);
+      expect(h).not.toContain('correct');
+      expect(await verifyPassword('correct horse battery', h)).toBe(true);
+      expect(await verifyPassword('wrong password', h)).toBe(false);
+      expect(await hashPassword('correct horse battery')).not.toBe(h); // salted
+    });
+
+    it('creates the first admin only once', async () => {
+      const passwordHash = await hashPassword('first-admin-pw');
+      const first = await createFirstAdmin({ email: 'Ada@Example.com', name: 'Ada', passwordHash });
+      expect(first).toMatchObject({ email: 'ada@example.com', role: 'admin' });
+      expect(await createFirstAdmin({ email: 'eve@example.com', name: 'Eve', passwordHash })).toBeUndefined();
+      expect((await getUserWithHash({ email: 'ADA@example.com' }))?.id).toBe(first!.id); // case-insensitive
+    });
+
+    it('resolves sessions, and drops them for disabled users and on sign-out everywhere', async () => {
+      const u = await createUser({ email: 'm@example.com', name: 'M', role: 'member', passwordHash: 'x' });
+      const a = await createSession(u.id, 14, {});
+      const b = await createSession(u.id, 14, {});
+      expect((await userForSession(a.token, 14))?.id).toBe(u.id);
+      expect(await userForSession('not-a-token', 14)).toBeUndefined();
+      await deleteUserSessions(u.id, a.token); // keep a, drop b
+      expect(await userForSession(a.token, 14)).toBeDefined();
+      expect(await userForSession(b.token, 14)).toBeUndefined();
+      await updateUser(u.id, { disabled: true });
+      expect(await userForSession(a.token, 14)).toBeUndefined();
+      const [row] = await db.query<{ token_hash: string }>('select token_hash from sessions where user_id = $1', [u.id]);
+      expect(row.token_hash).not.toBe(a.token); // only a hash is stored
+    });
+
+    it('counts active admins (for the last-admin guard)', async () => {
+      const a = await createUser({ email: 'a1@example.com', name: 'A1', role: 'admin', passwordHash: 'x' });
+      await createUser({ email: 'a2@example.com', name: 'A2', role: 'admin', passwordHash: 'x' });
+      expect(await countActiveAdmins()).toBe(2);
+      expect(await countActiveAdmins(a.id)).toBe(1);
+    });
+
+    it('verifies and revokes API keys; stores only a hash', async () => {
+      const u = await createUser({ email: 'k@example.com', name: 'K', role: 'admin', passwordHash: 'x' });
+      const { key, info } = await createApiKey('billing-api', u.id);
+      expect(key.startsWith('slk_')).toBe(true);
+      expect(info.prefix).toBe(key.slice(0, 10));
+      expect(await verifyApiKey(key)).toBe(true);
+      expect(await verifyApiKey(key + 'x')).toBe(false);
+      const [row] = await db.query<{ key_hash: string }>('select key_hash from api_keys');
+      expect(row.key_hash).not.toContain(key);
+      expect(await revokeApiKey(info.id)).toBe(true);
+      expect(await verifyApiKey(key)).toBe(false);
+    });
+
+    it('records the audit log newest first', async () => {
+      await audit(null, 'login.failed', 'x@example.com');
+      await audit({ id: 'u1', email: 'a@example.com' }, 'user.created', 'b@example.com', { role: 'viewer' });
+      const entries = await listAudit(10);
+      expect(entries.map((e) => e.action)).toEqual(['user.created', 'login.failed']);
+      expect(entries[0]).toMatchObject({ actorEmail: 'a@example.com', target: 'b@example.com', details: { role: 'viewer' } });
     });
   });
 });

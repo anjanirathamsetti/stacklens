@@ -31,6 +31,11 @@ export interface StackLensOptions {
   getUserId?: (req: any) => string | number | undefined | null;
   /** Collector URL. Default: http://localhost:4300/api/ingest */
   endpoint?: string;
+  /**
+   * API key from the StackLens admin (Admin → API keys), sent as `Authorization: Bearer …`.
+   * Required when the server is set to reject traces without a key. Default: STACKLENS_API_KEY
+   */
+  apiKey?: string;
   /** Disable all tracing (wrappers become pass-through). Default: true unless STACKLENS_ENABLED=false */
   enabled?: boolean;
   /** 0..1 – fraction of requests to trace. Default 1 */

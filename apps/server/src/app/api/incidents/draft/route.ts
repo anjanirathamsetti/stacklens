@@ -1,11 +1,12 @@
 import { env } from '@/server/env';
 import { getErrorGroups } from '@/server/repositories/trace-repository';
 import { priorityOf } from '@/server/incident-service';
+import { withAuth } from '@/server/auth/guard';
 
 export const dynamic = 'force-dynamic';
 
 /** Suggested incident fields for an error group. */
-export async function GET(req: Request) {
+export const GET = withAuth('member', async (req: Request) => {
   const url = new URL(req.url);
   const errorId = url.searchParams.get('errorId');
   const g = (await getErrorGroups({ from: Date.now() - 7 * 86_400_000 })).groups.find((x) => x.id === errorId);
@@ -39,4 +40,4 @@ export async function GET(req: Request) {
     priority: priorityOf(urgency, impact),
     group: g,
   });
-}
+});

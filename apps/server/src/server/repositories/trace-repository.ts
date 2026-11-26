@@ -247,8 +247,8 @@ const SORT_COLUMNS: Record<NonNullable<TraceQuery['sort']>, string> = {
 /** One page of trace summaries plus the total number of matches. */
 export async function pageTraces(q: TraceQuery = {}): Promise<{ traces: TraceSummary[]; total: number }> {
   const db = await getDb();
-  const limit = Math.min(500, Math.max(1, q.limit ?? 200));
-  const offset = Math.max(0, q.offset ?? 0);
+  const limit = Math.min(500, Math.max(1, Number.isFinite(q.limit) ? Math.floor(q.limit!) : 200));
+  const offset = Math.max(0, Number.isFinite(q.offset) ? Math.floor(q.offset!) : 0);
   const where = whereClause(q);
   const order = `${SORT_COLUMNS[q.sort ?? 'time'] ?? SORT_COLUMNS.time} ${q.order === 'asc' ? 'asc' : 'desc'}, t.start_time desc`;
   // page and count separately: a `count(*) over ()` window would materialize every matching row

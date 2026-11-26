@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { AppSidebar } from '@/components/layout/app-sidebar';
 import { Providers } from '@/components/layout/providers';
 import './globals.css';
 
@@ -12,16 +11,12 @@ export const metadata: Metadata = {
   description: 'Call-tree tracing for Node.js backends – NestJS, Express and TypeORM',
 };
 
+/** Shell shared by every page. Signed-in pages add the sidebar in `(app)/layout.tsx`; sign-in pages live in `(auth)`. */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${sans.variable} ${mono.variable} font-sans`}>
-        <Providers>
-          <div className="flex h-dvh overflow-hidden">
-            <AppSidebar />
-            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
-          </div>
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
