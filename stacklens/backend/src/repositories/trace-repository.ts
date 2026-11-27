@@ -8,6 +8,7 @@ import type {
   RouteStat,
   SpanKind,
   Totals,
+  TraceLinks,
   TraceRecord,
   TraceSummary,
 } from '@stacklens/shared/api-types';
@@ -45,7 +46,7 @@ export interface TraceQuery {
 const SUMMARY_COLUMNS = `
   t.id, t.start_time, t.duration_ms, t.status, t.kind, t.name, t.application, t.project, t.environment, t.user_id,
   t.method, t.url, t.route, t.status_code, t.span_count, t.error_count, t.max_depth, t.truncated, t.kind_time, t.errors,
-  (t.payload is not null) as has_payload`;
+  (t.payload is not null) as has_payload, t.parent_trace_id, t.parent_span_id, t.parent_service`;
 
 interface SummaryRow {
   id: string;
@@ -69,6 +70,9 @@ interface SummaryRow {
   kind_time: TraceSummary['kindTime'];
   errors: TraceSummary['errors'];
   has_payload: boolean;
+  parent_trace_id: string | null;
+  parent_span_id: string | null;
+  parent_service: string | null;
 }
 
 const ms = (d: Date | string | number) => (d instanceof Date ? d.getTime() : new Date(d).getTime());
@@ -98,6 +102,10 @@ function toSummary(r: SummaryRow): TraceSummary {
     kindTime: r.kind_time,
     errors: r.errors,
     hasPayload: r.has_payload,
+    parent:
+      r.parent_trace_id && r.parent_span_id
+        ? { traceId: r.parent_trace_id, spanId: r.parent_span_id, service: opt(r.parent_service) }
+        : undefined,
   };
 }
 
@@ -125,6 +133,9 @@ function traceRow(s: TraceSummary, payload: TraceRecord | null) {
     kind_time: s.kindTime ?? {},
     errors: s.errors ?? [],
     payload,
+    parent_trace_id: s.parent?.traceId ?? null,
+    parent_span_id: s.parent?.spanId ?? null,
+    parent_service: s.parent?.service ?? null,
   };
 }
 
@@ -152,7 +163,8 @@ function errorRows(s: TraceSummary) {
 const TRACE_RECORDSET = `
   id text, start_time timestamptz, duration_ms double precision, status text, kind text, name text, application text,
   project text, environment text, user_id text, method text, url text, route text, status_code integer, span_count integer,
-  error_count integer, max_depth integer, truncated boolean, kind_time jsonb, errors jsonb, payload jsonb`;
+  error_count integer, max_depth integer, truncated boolean, kind_time jsonb, errors jsonb, payload jsonb,
+  parent_trace_id text, parent_span_id text, parent_service text`;
 
 const ERROR_RECORDSET = `
   trace_id text, error_id text, start_time timestamptz, application text, span_name text, span_kind text, name text,
@@ -168,7 +180,8 @@ export async function insertTraces(records: { summary: TraceSummary; payload: Tr
   const inserted = await conn.transaction(async (tx) => {
     const rows = await tx.query<{ id: string }>(
       `insert into traces (id, start_time, duration_ms, status, kind, name, application, project, environment, user_id, method, url,
-         route, status_code, span_count, error_count, max_depth, truncated, kind_time, errors, payload)
+         route, status_code, span_count, error_count, max_depth, truncated, kind_time, errors, payload,
+         parent_trace_id, parent_span_id, parent_service)
        select * from jsonb_to_recordset($1::jsonb) as x(${TRACE_RECORDSET})
        on conflict (id) do nothing
        returning id`,
@@ -271,6 +284,43 @@ export async function getTrace(id: string): Promise<TraceRecord | undefined> {
   const db = await getDb();
   const [r] = await db.query<{ payload: TraceRecord | null }>('select payload from traces where id = $1', [id]);
   return r?.payload ?? undefined;
+}
+
+/**
+ * How a trace connects to other services' traces: the caller (from the trace's own `parent`) and
+ * the callees – traces whose `parent` points here, plus traces named by an outgoing span's
+ * `childTraceId` (callees that answered with their trace id but didn't get a traceparent).
+ * `undefined` when the trace is unknown.
+ */
+export async function getTraceLinks(id: string): Promise<TraceLinks | undefined> {
+  const db = await getDb();
+  const [self] = await db.query<SummaryRow & { payload: TraceRecord | null }>(
+    `select ${SUMMARY_COLUMNS}, t.payload from traces t where t.id = $1`,
+    [id],
+  );
+  if (!self) return undefined;
+  const reported = new Map<string, string>(); // child trace id -> outgoing span id
+  for (const s of self.payload?.spans ?? []) {
+    const child = s.outbound?.childTraceId;
+    if (typeof child === 'string' && child !== id) reported.set(child, s.id);
+  }
+  const [linked, named, parentRows] = await Promise.all([
+    db.query<SummaryRow>(`select ${SUMMARY_COLUMNS} from traces t where t.parent_trace_id = $1 order by t.start_time limit 500`, [id]),
+    reported.size
+      ? db.query<SummaryRow>(`select ${SUMMARY_COLUMNS} from traces t where t.id = any($1::text[])`, [[...reported.keys()]])
+      : Promise.resolve([] as SummaryRow[]),
+    self.parent_trace_id
+      ? db.query<SummaryRow>(`select ${SUMMARY_COLUMNS} from traces t where t.id = $1`, [self.parent_trace_id])
+      : Promise.resolve([] as SummaryRow[]),
+  ]);
+  const children = new Map<string, TraceLinks['children'][number]>();
+  for (const r of linked) children.set(r.id, { spanId: r.parent_span_id!, trace: toSummary(r) });
+  for (const r of named) if (!children.has(r.id)) children.set(r.id, { spanId: reported.get(r.id)!, trace: toSummary(r) });
+  const me = toSummary(self);
+  return {
+    parent: me.parent ? { ...me.parent, trace: parentRows[0] ? toSummary(parentRows[0]) : undefined } : undefined,
+    children: [...children.values()],
+  };
 }
 
 export async function getSummary(id: string): Promise<TraceSummary | undefined> {

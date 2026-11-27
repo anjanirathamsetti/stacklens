@@ -15,6 +15,7 @@ import { tracer } from './core/tracer';
 import { autoInstrument, type AutoInstrumentOptions } from './instrumentation/auto-instrument';
 import { instrument, instrumentClass, kindFromName, wrapFunction } from './instrumentation/wrap';
 import { expressMiddleware, type ExpressMiddlewareOptions } from './integrations/express';
+import { instrumentHttpClient, propagationHeaders } from './integrations/http-client';
 import { instrumentNest, type NestInstrumentOptions } from './integrations/nestjs';
 import { instrumentTypeORM, type TypeOrmInstrumentOptions } from './integrations/typeorm';
 import type { InstrumentOptions, SpanKind, StackLensOptions } from './types';
@@ -23,6 +24,8 @@ export * from './types';
 export { Traced, instrument, instrumentClass, unwrap, wrapFunction } from './instrumentation/wrap';
 export { autoInstrument } from './instrumentation/auto-instrument';
 export { expressMiddleware } from './integrations/express';
+export { instrumentHttpClient, propagationHeaders } from './integrations/http-client';
+export { parseTraceparent, formatTraceparent } from './core/propagation';
 export { instrumentNest } from './integrations/nestjs';
 export { instrumentTypeORM } from './integrations/typeorm';
 export type { AutoInstrumentOptions, ExpressMiddlewareOptions, NestInstrumentOptions, TypeOrmInstrumentOptions };
@@ -33,6 +36,8 @@ export const stacklens = {
   init(options: StackLensOptions = {}) {
     tracer.configure(options);
     if (tracer.opts.captureConsole) patchConsole((level, args) => tracer.opts.captureConsole && tracer.addLog(level, args));
+    // outgoing http/https/fetch calls: spans + W3C traceparent (checked per call, so later init() calls can turn it off)
+    if (tracer.opts.enabled && (tracer.opts.captureOutbound || tracer.opts.propagate)) instrumentHttpClient();
     process.once('beforeExit', () => void tracer.flush());
     return stacklens;
   },
@@ -101,6 +106,12 @@ export const stacklens = {
   currentTraceId(): string | undefined {
     return traceContext.getStore()?.trace.record.id;
   },
+
+  /**
+   * `traceparent` / `tracestate` headers for the current call, for transports StackLens doesn't patch
+   * (message queues, gRPC, a custom HTTP client). `{}` outside a trace or with `propagate: false`.
+   */
+  propagationHeaders: (): Record<string, string> => propagationHeaders(),
 
   /** Send queued traces now (call before exit in scripts and tests). */
   flush: (): Promise<void> => tracer.flush(),

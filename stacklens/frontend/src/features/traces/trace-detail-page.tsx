@@ -43,6 +43,7 @@ import { cn, formatDateTime, formatMs, KIND_META, SEVERITY, severityOf } from '@
 import { useSettings } from '@/lib/settings-context';
 import { OutcomeBadge } from '@/components/data-display/trace-badges';
 import { TraceShareMenu } from '@/features/traces/components/trace-share-menu';
+import { CalledByBanner, RemoteInspectorNote, useRemoteCalls } from '@/features/traces/components/remote-calls';
 import { ExplainFailurePanel, ExplainSlowdownPanel } from '@/features/ai/components/ai-entry-points';
 import type { SpanKind, TraceRecord, TraceSummary } from '@stacklens/shared/api-types';
 
@@ -172,16 +173,25 @@ function TraceDetail({ id }: { id: string }) {
   }, []);
 
   const tree = useMemo(() => (trace ? buildTree(trace.spans) : null), [trace]);
-  const selected = selectedId && tree ? tree.byId.get(selectedId) : undefined;
+  // other services' call trees, grafted under the outgoing calls the user expanded
+  const remote = useRemoteCalls(trace);
+  const viewTree = useMemo(
+    () => (trace && remote.spans.length > trace.spans.length ? buildTree(remote.spans) : tree),
+    [trace, tree, remote.spans],
+  );
+  const selected = selectedId && viewTree ? viewTree.byId.get(selectedId) : undefined;
   const path = useMemo(
     () =>
-      selected && tree
-        ? ancestorsOf(selected.id, tree.byId)
+      selected && viewTree
+        ? ancestorsOf(selected.id, viewTree.byId)
             .reverse()
-            .map((pid) => tree.byId.get(pid)!)
+            .map((pid) => viewTree.byId.get(pid)!)
         : [],
-    [selected, tree],
+    [selected, viewTree],
   );
+  // a grafted span is inspected against its own trace (its entry point shows that request's input/output)
+  const selectedTrace = (selected?.remote && remote.recordOf(selected.remote.traceId)) || trace;
+  const selectedForInspector = selected?.remote?.root ? { ...selected, parentId: null } : selected;
   const allLogs = useMemo(
     () =>
       trace && tree
@@ -193,8 +203,8 @@ function TraceDetail({ id }: { id: string }) {
   const select = (sid: string, t?: InspectorTab) => {
     setSelectedId(sid);
     if (t) setTab(t);
-    if (!tree) return;
-    const anc = ancestorsOf(sid, tree.byId);
+    if (!viewTree) return;
+    const anc = ancestorsOf(sid, viewTree.byId);
     if (anc.some((a) => collapsed.has(a))) {
       const next = new Set(collapsed);
       anc.forEach((a) => next.delete(a));
@@ -255,7 +265,7 @@ function TraceDetail({ id }: { id: string }) {
         </div>
       </div>
     );
-  if (!trace || !tree)
+  if (!trace || !tree || !viewTree)
     return (
       <div className="grid flex-1 place-items-center">
         <Loader2 className="size-5 animate-spin text-muted-foreground" />
@@ -264,6 +274,7 @@ function TraceDetail({ id }: { id: string }) {
 
   const spans = trace.spans;
   const origins = errorOrigins(spans);
+  const viewOrigins = viewTree === tree ? origins : errorOrigins(remote.spans);
   const nodes = [...tree.byId.values()].filter((n) => n.parentId !== null);
   const originNodes = nodes.filter((n) => origins.has(n.id));
   const firstError = originNodes[0];
@@ -329,7 +340,7 @@ function TraceDetail({ id }: { id: string }) {
           <TraceShareMenu
             traceId={trace.id}
             title={`${http?.method ?? ''} ${http?.route ?? trace.name}`.trim()}
-            spanId={selected?.parentId ? selected.id : undefined}
+            spanId={selected?.parentId && !selected.remote ? selected.id : undefined}
             spanName={selected?.name}
           />
         </div>
@@ -338,6 +349,7 @@ function TraceDetail({ id }: { id: string }) {
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1 overflow-y-auto">
           <div className="space-y-4 p-5">
+            {remote.links?.parent && <CalledByBanner parent={remote.links.parent} qs={globalQs} />}
             {/* Summary */}
             <Card className="p-4">
               <div className="flex flex-wrap items-start gap-4">
@@ -475,15 +487,17 @@ function TraceDetail({ id }: { id: string }) {
 
                 <TabsContent value="tree" className="overflow-x-auto">
                   <CallTree
-                    roots={tree.roots}
-                    byId={tree.byId}
+                    roots={viewTree.roots}
+                    byId={viewTree.byId}
                     duration={trace.duration}
                     selectedId={selectedId}
                     onSelect={(sid) => select(sid)}
                     collapsed={collapsed}
                     setCollapsed={setCollapsed}
                     filter={filter}
-                    errorOrigins={origins}
+                    errorOrigins={viewOrigins}
+                    remote={remote.remote}
+                    onToggleRemote={remote.toggle}
                   />
                   {!selected && (
                     <div className="flex items-center gap-2 px-4 py-3 text-[11px] text-muted-foreground">
@@ -494,7 +508,7 @@ function TraceDetail({ id }: { id: string }) {
                 </TabsContent>
 
                 <TabsContent value="flame">
-                  <FlameGraph byId={tree.byId} duration={trace.duration} selectedId={selectedId} onSelect={(sid) => select(sid)} />
+                  <FlameGraph byId={viewTree.byId} duration={trace.duration} selectedId={selectedId} onSelect={(sid) => select(sid)} />
                 </TabsContent>
 
                 <TabsContent value="logs">
@@ -584,14 +598,17 @@ function TraceDetail({ id }: { id: string }) {
             style={{ animation: 'slide-in 160ms ease-out' }}
           >
             <SpanDetails
-              span={selected}
-              trace={trace}
+              span={selectedForInspector!}
+              trace={selectedTrace ?? trace}
               traceDuration={trace.duration}
               path={path}
               onSelect={(sid) => select(sid)}
               tab={tab}
               onTab={setTab}
               onClose={() => setSelectedId(undefined)}
+              note={
+                <RemoteInspectorNote span={selected} link={remote.remote.get(selected.id)} onToggle={() => remote.toggle(selected.id)} />
+              }
             />
           </ResizableAside>
         )}

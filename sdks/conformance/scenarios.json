@@ -40,6 +40,15 @@
         "status": "ok",
         "spans": { "AuditService.record": { "log": "recorded" } }
       }
+    },
+    {
+      "name": "cross-service",
+      "description": "Two instrumented HTTP services. A job (the caller) sends GET /orders/1 with the language's standard HTTP client to a second, instrumented HTTP server (the callee), which responds 200 with JSON { \"id\": 1 }. The runner outputs the caller's trace under \"cross-service\" and the callee's trace under \"cross-service.child\". The outgoing call is one span of kind http with `outbound` set; the request carries a W3C traceparent header naming that span; the callee's trace records it as `parent` and returns its own trace id in the x-stacklens-trace-id response header.",
+      "expect": {
+        "status": "ok",
+        "outbound": { "method": "GET", "statusCode": 200, "propagated": true, "childTraceId": true, "count": 1 },
+        "child": { "parentLinked": true }
+      }
     }
   ]
 }

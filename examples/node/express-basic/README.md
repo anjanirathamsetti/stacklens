@@ -12,6 +12,15 @@ curl localhost:3001/api/users/1
 curl localhost:3001/api/orders/2/fail   # a traced 500
 ```
 
+## Calling another service
+
+`POST /api/checkout/:userId` calls the NestJS example (`billing-api`, port 3002, override with `BILLING_URL`): a `fetch` GET for the invoice and a `node:http` POST (what axios does in Node) to create the order. Both apps run StackLens, so the outgoing calls carry a W3C `traceparent` header and, in the trace view, each outgoing call expands into billing-api's own call tree.
+
+```bash
+npm run example:nest      # in another terminal
+curl -X POST localhost:3001/api/checkout/1
+```
+
 ## Heavy endpoints (big call trees)
 
 For trying StackLens on requests with thousands of internal calls (see `src/lab`):

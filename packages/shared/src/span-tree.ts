@@ -1,6 +1,19 @@
 import type { SpanRecord } from './api-types';
 
+/** Marks a span that belongs to another service's trace, shown inline under the outgoing call that caused it. */
+export interface RemoteMark {
+  /** The other service's trace. */
+  traceId: string;
+  service: string;
+  /** Id of the span inside that trace. */
+  spanId: string;
+  /** The other trace's root span (its entry point). */
+  root: boolean;
+}
+
 export interface SpanNode extends SpanRecord {
+  /** Set when the span was grafted in from another service's trace. */
+  remote?: RemoteMark;
   children: SpanNode[];
   depth: number;
   selfTime: number;
@@ -64,7 +77,7 @@ export function selfTimes(spans: SpanRecord[]): Map<string, number> {
   return out;
 }
 
-export function buildTree(spans: SpanRecord[]): { roots: SpanNode[]; byId: Map<string, SpanNode> } {
+export function buildTree(spans: (SpanRecord & { remote?: RemoteMark })[]): { roots: SpanNode[]; byId: Map<string, SpanNode> } {
   const self = selfTimes(spans);
   const byId = new Map<string, SpanNode>();
   for (const s of spans) byId.set(s.id, { ...s, children: [], depth: 0, selfTime: self.get(s.id) ?? 0, descendants: 0 });

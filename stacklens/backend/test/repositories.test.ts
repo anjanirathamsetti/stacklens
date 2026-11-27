@@ -23,6 +23,7 @@ import {
   getHotspots,
   getMetrics,
   getTrace,
+  getTraceLinks,
   ingestTraces,
   pageTraces,
   storageInfo,
@@ -131,6 +132,72 @@ describe.each(backends)('$name', ({ setup, notify }) => {
       expect(await ingestTraces([t, t])).toBe(1);
       expect(await ingestTraces([t])).toBe(0);
       expect(await getTrace(t.id)).toEqual(json(t));
+    });
+
+    it('links traces across services in either arrival order', async () => {
+      const parent = makeTrace({ app: 'orders-api', route: '/checkout' });
+      parent.spans.push({
+        id: 'out1',
+        parentId: 'root',
+        name: 'GET billing:3002/orders/:id',
+        method: 'GET billing:3002/orders/:id',
+        kind: 'http',
+        start: 2,
+        duration: 5,
+        status: 'ok',
+        async: true,
+        params: ['request'],
+        outbound: { method: 'GET', url: 'http://billing:3002/orders/1', host: 'billing:3002', statusCode: 200, propagated: true },
+      });
+      const child = {
+        ...makeTrace({ app: 'billing-api', route: '/orders/:id' }),
+        parent: { traceId: parent.id, spanId: 'out1', service: 'orders-api' },
+      };
+      // a callee that answered with its trace id but got no traceparent (propagateTo excluded it)
+      const named = makeTrace({ app: 'search-api', route: '/search' });
+      parent.spans.push({
+        ...parent.spans.at(-1)!,
+        id: 'out2',
+        outbound: { method: 'GET', url: 'http://search/x', host: 'search', childTraceId: named.id },
+      });
+      // the reported id of a callee that sends traces to another server
+      parent.spans.push({
+        ...parent.spans.at(-1)!,
+        id: 'out3',
+        outbound: { method: 'GET', url: 'http://far/x', host: 'far', childTraceId: 'elsewhere' },
+      });
+      const bogus = { ...makeTrace(), parent: { traceId: "x'; drop table traces; --", spanId: 'y' } };
+
+      // child first: the link is resolved at read time
+      await ingestTraces([child, named, bogus as never]);
+      expect((await getTraceLinks(child.id))?.parent).toEqual({
+        traceId: parent.id,
+        spanId: 'out1',
+        service: 'orders-api',
+        trace: undefined,
+      });
+      await ingestTraces([parent]);
+
+      const down = await getTraceLinks(parent.id);
+      expect(down?.parent).toBeUndefined();
+      expect(down?.children.map((c) => [c.spanId, c.trace.id, c.trace.application]).sort()).toEqual(
+        [
+          ['out1', child.id, 'billing-api'],
+          ['out2', named.id, 'search-api'],
+        ].sort(),
+      );
+      const up = await getTraceLinks(child.id);
+      expect(up?.parent).toMatchObject({
+        traceId: parent.id,
+        spanId: 'out1',
+        trace: { id: parent.id, application: 'orders-api', route: '/checkout' },
+      });
+      expect(up?.children).toEqual([]);
+      // malformed parents are ignored, unknown traces are undefined
+      expect((await getTraceLinks(bogus.id))?.parent).toBeUndefined();
+      expect(await getTraceLinks('nope')).toBeUndefined();
+      // the summary list carries the parent too
+      expect((await pageTraces({ application: 'billing-api' })).traces[0].parent).toMatchObject({ traceId: parent.id, spanId: 'out1' });
     });
 
     it('filters, searches, sorts and paginates', async () => {

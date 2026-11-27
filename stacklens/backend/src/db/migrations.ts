@@ -197,6 +197,18 @@ export const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       create index audit_log_at_idx on audit_log (at desc);
     `,
   },
+  {
+    id: 4,
+    name: 'cross-service trace links',
+    sql: /* sql */ `
+      -- set when another instrumented service made the request (W3C traceparent); joined at read time,
+      -- so parent and child may arrive in any order or live on different servers
+      alter table traces add column if not exists parent_trace_id text;
+      alter table traces add column if not exists parent_span_id  text;
+      alter table traces add column if not exists parent_service  text;
+      create index if not exists traces_parent_idx on traces (parent_trace_id, start_time) where parent_trace_id is not null;
+    `,
+  },
 ];
 
 const LOCK_ID = 7_041_912; // arbitrary, stable

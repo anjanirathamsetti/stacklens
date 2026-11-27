@@ -6,6 +6,7 @@ import { cn, formatMs, KIND_META, SEVERITY, severityOf } from '@/lib/utils';
 import { busyTime, flatten, type SpanNode } from '@stacklens/shared/span-tree';
 import { sqlSummary } from '@stacklens/shared/sql-format';
 import type { SpanKind } from '@stacklens/shared/api-types';
+import { RemoteChip, RemoteServiceTag, type RemoteLink } from './remote-calls';
 
 export const KIND_SHORT: Record<SpanKind, string> = {
   http: 'HTTP',
@@ -40,6 +41,8 @@ export function CallTree({
   setCollapsed,
   filter,
   errorOrigins,
+  remote,
+  onToggleRemote,
 }: {
   roots: SpanNode[];
   byId: Map<string, SpanNode>;
@@ -50,6 +53,9 @@ export function CallTree({
   setCollapsed: (s: Set<string>) => void;
   filter: string;
   errorOrigins?: Set<string>;
+  /** outgoing calls to other instrumented services, by span id */
+  remote?: Map<string, RemoteLink>;
+  onToggleRemote?: (spanId: string) => void;
 }) {
   const rows = useMemo(() => flatten(roots, collapsed), [roots, collapsed]);
   const order = useMemo(() => {
@@ -188,6 +194,8 @@ export function CallTree({
           const barColor = origin && S ? S.bar : meta.bar;
           const trackColor = origin && S ? S.track : cn(meta.bar, 'opacity-25');
           const labelRight = left + width < 80;
+          const link = remote?.get(n.id);
+          const canExpandRemote = !!link && link.state !== 'unavailable' && !!onToggleRemote;
           // ancestors chain for guide lines
           const ancestors: SpanNode[] = [];
           let a = n.parentId ? byId.get(n.parentId) : undefined;
@@ -207,7 +215,7 @@ export function CallTree({
               className={cn(
                 'group relative z-10 grid cursor-pointer items-center border-b border-border/40 text-[12.5px] transition-[background-color,opacity]',
                 GRID,
-                isSel ? 'bg-brand/[0.09]' : 'hover:bg-accent/50',
+                isSel ? 'bg-brand/[0.09]' : n.remote ? 'bg-sky-500/[0.04] hover:bg-sky-500/[0.08]' : 'hover:bg-accent/50',
                 dimmed && !isSel && 'opacity-60 hover:opacity-100',
               )}
             >
@@ -235,7 +243,18 @@ export function CallTree({
                   />
                 )}
                 <span className="flex shrink-0 items-center" style={{ paddingLeft: 8 + ancestors.length * INDENT }}>
-                  {n.children.length > 0 ? (
+                  {canExpandRemote ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleRemote!(n.id);
+                      }}
+                      className="grid size-4 place-items-center rounded border border-sky-500/40 bg-background text-sky-600 hover:text-sky-800 dark:text-sky-400 dark:hover:text-sky-200 cursor-pointer"
+                      aria-label={link!.state === 'open' ? 'Hide the called service' : 'Show the called service'}
+                    >
+                      <ChevronRight className={cn('size-3 transition-transform', link!.state === 'open' && 'rotate-90')} />
+                    </button>
+                  ) : n.children.length > 0 ? (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -264,7 +283,23 @@ export function CallTree({
                   {n.className && <span className="text-muted-foreground">{n.className}.</span>}
                   <span className={cn('font-semibold', origin && S?.text)}>{n.className ? n.method : n.name}</span>
                   {!isRoot &&
-                    (n.kind === 'db' && typeof n.args?.[0] === 'string' ? (
+                    !n.remote?.root &&
+                    (n.outbound ? (
+                      n.outbound.statusCode !== undefined && (
+                        <span
+                          className={cn(
+                            'ml-1.5 text-[11px]',
+                            n.outbound.statusCode >= 500
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : n.outbound.statusCode >= 400
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-muted-foreground',
+                          )}
+                        >
+                          → {n.outbound.statusCode}
+                        </span>
+                      )
+                    ) : n.kind === 'db' && typeof n.args?.[0] === 'string' ? (
                       <span className="ml-1.5 text-violet-600/80 dark:text-violet-400/80">{sqlSummary(n.args[0] as string)}</span>
                     ) : (
                       <span className="text-muted-foreground">
@@ -280,6 +315,8 @@ export function CallTree({
                     ))}
                 </span>
                 <span className="ml-2 flex shrink-0 items-center gap-1">
+                  {n.remote?.root && <RemoteServiceTag mark={n.remote} />}
+                  {link && <RemoteChip link={link} onToggle={() => onToggleRemote?.(n.id)} />}
                   {isErr &&
                     S &&
                     (origin ? (

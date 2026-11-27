@@ -541,6 +541,7 @@ export function SpanDetails({
   tab,
   onTab,
   onClose,
+  note,
 }: {
   span: SpanNode;
   trace: TraceRecord;
@@ -550,6 +551,8 @@ export function SpanDetails({
   tab: InspectorTab;
   onTab: (t: InspectorTab) => void;
   onClose?: () => void;
+  /** extra context under the header (e.g. the service an outgoing call reached) */
+  note?: React.ReactNode;
 }) {
   const meta = KIND_META[span.kind] ?? KIND_META.function;
   // collapsed spans: time the calls actually ran, not the wall-clock window they spread over
@@ -634,6 +637,7 @@ export function SpanDetails({
         )}
       </div>
 
+      {note}
       {span.collapsed && <CollapsedSummary span={span} />}
       <Tabs value={tab} onValueChange={(v) => onTab(v as InspectorTab)} className="flex min-h-0 flex-1 flex-col">
         <div className="shrink-0 border-b px-4 py-2">

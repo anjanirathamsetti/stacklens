@@ -6,6 +6,7 @@ import { newId, traceContext, type ActiveTrace, type SiblingGroup, type TraceCon
 import { toSpanError } from './errors';
 import { HttpExporter } from './exporter';
 import { cachedMatcher, matcher, resolveOptions, type ResolvedOptions } from './options';
+import { hostMatcher } from './propagation';
 
 export interface SpanInit {
   name: string;
@@ -37,6 +38,8 @@ export class Tracer {
   opts: ResolvedOptions;
   limits!: SerializeLimits;
   isIgnoredMethod!: (name: string) => boolean;
+  /** `propagateTo` as a predicate over `(hostname, host)`. */
+  propagatesTo!: (hostname: string, host: string) => boolean;
   private readonly exporter = new HttpExporter({
     endpoint: () => this.opts.endpoint,
     apiKey: () => this.opts.apiKey,
@@ -64,6 +67,7 @@ export class Tracer {
       redact: cachedMatcher(this.opts.redactKeys),
     };
     this.isIgnoredMethod = matcher(this.opts.ignoreMethods);
+    this.propagatesTo = hostMatcher(this.opts.propagateTo);
   }
 
   /* ----------------------------- values ----------------------------- */
@@ -239,6 +243,17 @@ export class Tracer {
       if (c.type !== undefined) span.resultType = c.type;
       trace.captureBytes += approxSize(c.value);
     }
+  }
+
+  /**
+   * Capture a value that arrives after its span ended (e.g. a response body read later), within the
+   * trace's capture budget. `undefined` when the trace was already exported or the budget is used up.
+   */
+  captureLate(trace: ActiveTrace, span: SpanRecord, value: unknown): unknown {
+    if (trace.finished || !this.opts.captureResults || !this.hasBudget(trace, span)) return undefined;
+    const c = this.capture(value);
+    trace.captureBytes += approxSize(c.value);
+    return c.value;
   }
 
   /** Attach a log line to the currently executing span. Returns `false` outside a trace. */

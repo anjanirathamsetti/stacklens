@@ -2,6 +2,7 @@
 // Conformance runner for the Node.js SDK: implements sdks/conformance/scenarios.json with
 // @stacklens/node-tracer and prints { "<scenario>": TraceRecord } to stdout.
 //   npm run build -w @stacklens/node-tracer && node sdks/conformance/node-tracer/run.mjs | node sdks/conformance/check.mjs -
+import http from 'node:http';
 import { stacklens } from '@stacklens/node-tracer';
 
 const captured = [];
@@ -80,5 +81,25 @@ for (const [name, fn] of Object.entries(scenarios)) {
   await stacklens.trace(`conformance.${name}`, fn).catch(() => {});
   await new Promise((r) => setTimeout(r, 20)); // traces are exported after settleMs
   results[name] = captured[0];
+}
+
+// cross-service: an instrumented callee (a plain node:http server using the Express-style middleware)
+// and a job that calls it with fetch
+{
+  const middleware = stacklens.express();
+  const callee = http.createServer((req, res) =>
+    middleware(req, res, () => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ id: 1 }));
+    }),
+  );
+  await new Promise((r) => callee.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${callee.address().port}`;
+  captured.length = 0;
+  await stacklens.trace('conformance.cross-service', async () => (await fetch(`${base}/orders/1`)).json());
+  await new Promise((r) => setTimeout(r, 50));
+  callee.close();
+  results['cross-service'] = captured.find((t) => t.name === 'conformance.cross-service');
+  results['cross-service.child'] = captured.find((t) => t.parent);
 }
 process.stdout.write(JSON.stringify(results, null, 2) + '\n');
