@@ -30,7 +30,7 @@ function Avatar({ name, dim }: { name: string; dim?: boolean }) {
   return (
     <span
       className={cn(
-        'grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand/80 to-violet-500/80 text-[11px] font-semibold text-white',
+        'grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-viz/80 to-violet-500/80 text-[11px] font-semibold text-white',
         dim && 'opacity-40 grayscale',
       )}
     >

@@ -22,7 +22,7 @@ import type { Metrics, TraceSummary } from '@stacklens/shared/api-types';
 
 function DurationBar({ ms, max }: { ms: number; max: number }) {
   const pct = Math.max(2, Math.min(100, (ms / Math.max(max, 1)) * 100));
-  const tone = ms > 1000 ? 'bg-destructive' : ms > 300 ? 'bg-warning' : 'bg-brand';
+  const tone = ms > 1000 ? 'bg-destructive' : ms > 300 ? 'bg-warning' : 'bg-viz';
   return (
     <div className="flex items-center gap-2.5">
       <span className="w-16 text-right font-mono text-xs tabular-nums">{formatMs(ms)}</span>

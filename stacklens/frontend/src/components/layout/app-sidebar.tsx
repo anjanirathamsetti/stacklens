@@ -75,7 +75,7 @@ function Avatar({ name, className }: { name: string; className?: string }) {
   return (
     <span
       className={cn(
-        'grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand/80 to-violet-500/80 font-semibold text-white',
+        'grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-viz/80 to-violet-500/80 font-semibold text-white',
         className,
       )}
     >

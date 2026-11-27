@@ -154,7 +154,7 @@ function AiInner() {
     <>
       <PageHeader title="AI assistant" description="Explain failures, draft incidents and search in plain words">
         <Badge tone={cfg.enabled ? 'brand' : 'neutral'}>
-          <span className={cn('size-1.5 rounded-full', cfg.enabled ? 'bg-brand' : 'bg-muted-foreground/50')} />
+          <span className={cn('size-1.5 rounded-full', cfg.enabled ? 'bg-viz' : 'bg-muted-foreground/50')} />
           {cfg.enabled ? 'Turned on' : 'Off'}
         </Badge>
       </PageHeader>
@@ -162,7 +162,7 @@ function AiInner() {
         <div className="mx-auto max-w-5xl space-y-4 p-6">
           {/* Hero */}
           <Card className="overflow-hidden">
-            <div className="grid gap-6 bg-gradient-to-br from-violet-500/[0.06] via-transparent to-brand/[0.05] p-6 md:grid-cols-[1fr_280px]">
+            <div className="grid gap-6 bg-gradient-to-br from-violet-500/[0.06] via-transparent to-viz/[0.05] p-6 md:grid-cols-[1fr_280px]">
               <div>
                 <AiMark className="mb-3 size-10 rounded-xl" />
                 <h2 className="text-lg font-semibold tracking-tight">Debug with the full call tree, not just a stack trace</h2>

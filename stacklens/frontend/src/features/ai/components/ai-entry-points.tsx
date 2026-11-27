@@ -249,7 +249,7 @@ export function GenerateTestButton({ functionName, className }: { functionName: 
               </Select>
               <Button
                 size="sm"
-                className="ml-auto bg-gradient-to-r from-violet-600 to-brand text-white hover:opacity-90"
+                className="ml-auto bg-gradient-to-r from-violet-600 to-viz text-white hover:opacity-90"
                 disabled={state !== 'preview'}
                 onClick={() => setTried(true)}
               >

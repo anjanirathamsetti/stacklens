@@ -19,14 +19,14 @@ import { cn, formatMs } from '@/lib/utils';
 import type { MetricsBucket } from '@stacklens/shared/api-types';
 
 export const C = {
-  brand: 'var(--brand)',
+  brand: 'var(--viz)',
   success: 'var(--success)',
   warning: 'var(--warning)',
   error: 'var(--destructive)',
   muted: 'var(--muted-foreground)',
   grid: 'var(--border)',
   p50: 'oklch(0.72 0.12 200)',
-  p95: 'var(--brand)',
+  p95: 'var(--viz)',
   p99: 'oklch(0.66 0.17 300)',
   c3xx: 'oklch(0.7 0.1 230)',
 };

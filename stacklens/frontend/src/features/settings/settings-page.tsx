@@ -60,7 +60,7 @@ function ProfileTab() {
         }
       >
         <div className="flex items-center gap-4">
-          <span className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-brand/80 to-violet-500/80 text-lg font-semibold text-white">
+          <span className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-viz/80 to-violet-500/80 text-lg font-semibold text-white">
             {initials(p.name || user.name)}
           </span>
           <div className="text-xs text-muted-foreground">Your avatar uses your initials.</div>

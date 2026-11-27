@@ -447,7 +447,7 @@ function OverviewInner() {
                           <span className="w-8 font-mono text-xs tabular-nums">{r.count}</span>
                           <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
                             <div
-                              className="h-full rounded-full bg-brand"
+                              className="h-full rounded-full bg-viz"
                               style={{ width: `${(r.count / (m.routes[0]?.count || 1)) * 100}%` }}
                             />
                           </div>
