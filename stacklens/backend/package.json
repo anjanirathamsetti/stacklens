@@ -1,0 +1,29 @@
+{
+  "name": "@stacklens/backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "StackLens app core: HTTP handlers, auth, PostgreSQL storage, repositories and services. Framework-agnostic (no React / Next.js); the frontend's API routes are thin adapters over src/http.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.6.0",
+    "@stacklens/shared": "*",
+    "@stacklens/types": "0.1.0",
+    "pg": "^8.23.1",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite-socket": "^0.3.0",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.7"
+  }
+}

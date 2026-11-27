@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Runs before `npm run dev` (apps/server "predev").
+ * Runs before `npm run dev` (stacklens/frontend "predev").
  *
  * Cloud-synced folders (iCloud Desktop & Documents, Dropbox, OneDrive, Google Drive) fight with
  * dev servers: they create conflict copies such as "src/lib 2" or "BUILD_ID 2" and touch files
@@ -65,7 +65,8 @@ function cloudSyncedBy(dir) {
 }
 
 const removed = [];
-for (const top of ['apps', 'packages', 'examples', 'scripts', 'docs', '.github']) removeEmptyConflictDirs(path.join(root, top), removed);
+for (const top of ['stacklens', 'packages', 'sdks', 'examples', 'deploy', 'scripts', 'docs', '.github'])
+  removeEmptyConflictDirs(path.join(root, top), removed);
 if (removed.length) console.log(`[stacklens] removed ${removed.length} empty sync-conflict folder(s): ${removed.join(', ')}`);
 
 /**
@@ -92,24 +93,30 @@ function excludeFromSync(dirs) {
   return flagged;
 }
 
+function listDirs(rel) {
+  try {
+    return fs
+      .readdirSync(path.join(root, rel), { withFileTypes: true })
+      .filter((e) => e.isDirectory() && e.name !== 'node_modules')
+      .map((e) => e.name);
+  } catch {
+    return [];
+  }
+}
+
 const provider = cloudSyncedBy(root);
 if (provider) {
   const generated = [
     'node_modules',
-    'apps/server/.next',
-    'apps/server/.next.nosync',
-    ...(fs.existsSync(path.join(root, 'apps/server/node_modules')) ? ['apps/server/node_modules'] : []),
-    ...['packages', 'examples'].flatMap((top) => {
-      try {
-        return fs
-          .readdirSync(path.join(root, top), { withFileTypes: true })
-          .filter((e) => e.isDirectory())
-          .flatMap((e) => [`${top}/${e.name}/dist`, `${top}/${e.name}/node_modules`])
-          .filter((rel) => (top === 'packages' && rel.endsWith('/dist')) || fs.existsSync(path.join(root, rel)));
-      } catch {
-        return [];
-      }
-    }),
+    'stacklens/frontend/.next',
+    'stacklens/frontend/.next.nosync',
+    ...['stacklens/frontend', 'stacklens/backend'].map((d) => `${d}/node_modules`).filter((rel) => fs.existsSync(path.join(root, rel))),
+    // packages/* and sdks/* (built to dist), examples/<language>/* (node_modules only)
+    ...['packages', 'sdks', ...listDirs('examples').map((d) => `examples/${d}`)].flatMap((top) =>
+      listDirs(top)
+        .flatMap((name) => [`${top}/${name}/dist`, `${top}/${name}/node_modules`])
+        .filter((rel) => (!top.startsWith('examples/') && rel.endsWith('/dist')) || fs.existsSync(path.join(root, rel))),
+    ),
   ];
   const flagged = excludeFromSync(generated);
   if (flagged.length) console.log(`[stacklens] excluded from ${provider} sync: ${flagged.join(', ')}`);

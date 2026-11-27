@@ -12,12 +12,12 @@ npx stacklens --port 8080 --data-dir ./data
 ## Docker
 
 ```bash
-docker build -f docker/Dockerfile -t stacklens .
+docker build -f deploy/docker/Dockerfile -t stacklens .
 docker run -p 4300:4300 -e DATABASE_URL=postgres://user:pass@db:5432/stacklens stacklens   # production
 docker run -p 4300:4300 -v stacklens-data:/data stacklens                                   # embedded PostgreSQL
 ```
 
-`docker compose up --build` starts StackLens together with PostgreSQL 17.
+`npm run docker:up` (`docker compose -f deploy/docker-compose.yml up --build`) starts StackLens together with PostgreSQL 17.
 
 ## Database
 
@@ -49,7 +49,7 @@ The image runs as a non-root user, keeps data in the `/data` volume, and has a `
 | `SERVICENOW_INSTANCE`, `SERVICENOW_USERNAME`/`SERVICENOW_PASSWORD` or `SERVICENOW_TOKEN` | – | Enables real ServiceNow incidents |
 | `SERVICENOW_ASSIGNMENT_GROUP`, `SERVICENOW_CALLER_ID`, `SERVICENOW_CATEGORY`, `SERVICENOW_CLOSE_CODE` | – | Incident defaults |
 
-See [`apps/server/.env.example`](../apps/server/.env.example).
+See [`stacklens/frontend/.env.example`](../stacklens/frontend/.env.example).
 
 ## Pointing apps at it
 

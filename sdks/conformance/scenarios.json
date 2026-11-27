@@ -1,0 +1,45 @@
+{
+  "$comment": "Language-neutral behaviour every StackLens SDK must show. Each SDK ships a runner that implements these scenarios with its own instrumentation and prints {\"<scenario>\": TraceRecord, ...} as JSON; check.mjs validates the output. Span names are ClassName.method (or the closest idiom in the language, mapped to these names).",
+  "contractVersion": 1,
+  "scenarios": [
+    {
+      "name": "nested-calls",
+      "description": "A job calls OrderController.create(input) → OrderService.place(input) → OrderRepository.save(order), which returns { id: 1, ...order }.",
+      "expect": {
+        "status": "ok",
+        "chain": ["OrderController.create", "OrderService.place", "OrderRepository.save"],
+        "spans": {
+          "OrderController.create": { "kind": "controller", "args": 1, "result": true },
+          "OrderService.place": { "kind": "service", "args": 1, "result": true },
+          "OrderRepository.save": { "kind": "repository", "args": 1, "result": true, "status": "ok" }
+        }
+      }
+    },
+    {
+      "name": "error",
+      "description": "A job calls PaymentService.charge(amount) which throws an error named PaymentError with message \"card declined\". The job does not catch it.",
+      "expect": {
+        "status": "error",
+        "spans": { "PaymentService.charge": { "status": "error", "errorName": "PaymentError", "errorMessage": "card declined" } }
+      }
+    },
+    {
+      "name": "repeated-calls",
+      "description": "A job calls BatchService.run() which calls BatchHelper.step(i) 1000 times in a loop (synchronously).",
+      "expect": {
+        "status": "ok",
+        "maxSpans": 50,
+        "calls": { "BatchHelper.step": 1000 },
+        "collapsed": "BatchHelper.step"
+      }
+    },
+    {
+      "name": "logs",
+      "description": "A job calls AuditService.record(event), which attaches the log line \"recorded\" to the current call (stacklens.log or the language's logging hook).",
+      "expect": {
+        "status": "ok",
+        "spans": { "AuditService.record": { "log": "recorded" } }
+      }
+    }
+  ]
+}

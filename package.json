@@ -2,7 +2,7 @@
   "name": "stacklens-monorepo",
   "private": true,
   "version": "0.1.0",
-  "description": "Call-tree tracing for Node.js backends (NestJS, Express, TypeORM) with a trace analyser UI",
+  "description": "Function-level call-tree tracing for backends, with a trace analyser UI. SDKs per language under sdks/.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -17,27 +17,34 @@
     "node": ">=22.12"
   },
   "workspaces": [
-    "packages/types",
-    "packages/tracer",
-    "apps/server",
-    "examples/*"
+    "packages/contract",
+    "packages/shared",
+    "sdks/node-tracer",
+    "stacklens/backend",
+    "stacklens/frontend",
+    "examples/node/*"
   ],
   "scripts": {
-    "build": "node scripts/dev-guard.mjs && npm run build:packages && npm run build -w stacklens",
-    "build:packages": "npm run build -w @stacklens/types && npm run build -w @stacklens/tracer",
-    "dev": "npm run build:packages && npm run dev -w stacklens",
-    "start": "npm run start -w stacklens",
+    "build": "node scripts/dev-guard.mjs && npm run build:packages && npm run build -w stacklens/frontend",
+    "build:packages": "npm run build -w @stacklens/types && npm run build -w @stacklens/node-tracer",
+    "dev": "npm run build:packages && npm run dev -w stacklens/frontend",
+    "start": "npm run start -w stacklens/frontend",
     "typecheck": "npm run build -w @stacklens/types && npm run typecheck --workspaces --if-present",
-    "lint": "eslint . && npm run lint -w stacklens",
-    "lint:fix": "eslint . --fix && npm run lint -w stacklens -- --fix",
+    "lint": "eslint . && npm run lint -w stacklens/frontend",
+    "lint:fix": "eslint . --fix && npm run lint -w stacklens/frontend -- --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm run test --workspaces --if-present",
     "example:express": "npm run start -w @stacklens-examples/express-basic",
     "example:nest": "npm run start -w @stacklens-examples/nestjs-typeorm",
     "traffic": "node scripts/generate-traffic.mjs",
-    "docker:build": "docker build -f docker/Dockerfile -t stacklens:local .",
-    "clean": "rm -rf packages/*/dist apps/server/.next apps/server/dist"
+    "docker:build": "docker build -f deploy/docker/Dockerfile -t stacklens:local .",
+    "clean": "rm -rf packages/*/dist sdks/*/dist stacklens/frontend/.next stacklens/frontend/.next.nosync stacklens/frontend/dist",
+    "seed": "node scripts/generate-traffic.mjs --seed",
+    "docker:up": "docker compose -f deploy/docker-compose.yml up --build",
+    "test:backend": "npm run test -w @stacklens/backend",
+    "test:sdk": "npm run test -w @stacklens/node-tracer",
+    "conformance:node": "npm run build -w @stacklens/node-tracer && node sdks/conformance/node-tracer/run.mjs | node sdks/conformance/check.mjs -"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
