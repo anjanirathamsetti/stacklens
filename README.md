@@ -5,7 +5,7 @@
 Add the SDK at your API's entry point. Every request is recorded as a tree of internal calls (controller → handler → service → repository → SQL), with each call's arguments, return value, inferred TypeScript type, errors and logs. You don't need any `console.log` statements.
 
 ```
-┌─────────────┐   @stacklens/tracer    ┌───────────────────────────────┐
+┌─────────────┐   @stacklens/node-tracer    ┌───────────────────────────────┐
 │  your API   │ ─────────────────────► │  stacklens server  :4300      │
 │ Nest/Express│   POST /api/ingest     │  collector + UI (npx/Docker)  │
 └─────────────┘                        └───────────────────────────────┘
@@ -17,18 +17,18 @@ Add the SDK at your API's entry point. Every request is recorded as a tree of in
 
 ```bash
 npx stacklens                                          # or:
-docker run -p 4300:4300 -e DATABASE_URL=postgres://… stacklens   # or: docker compose up (includes PostgreSQL)
+docker run -p 4300:4300 -e DATABASE_URL=postgres://… stacklens   # or: npm run docker:up (includes PostgreSQL)
 ```
 
 **2. Instrument your API**
 
 ```bash
-npm install @stacklens/tracer
+npm install @stacklens/node-tracer
 ```
 
 ```ts
 // NestJS + TypeORM (main.ts)
-import { stacklens } from '@stacklens/tracer';
+import { stacklens } from '@stacklens/node-tracer';
 import * as typeorm from 'typeorm';
 
 stacklens.init({ application: 'billing-api', project: 'payments' });
@@ -40,7 +40,7 @@ await app.listen(3000);
 
 ```js
 // Express, plain JavaScript (index.js)
-const { stacklens } = require('@stacklens/tracer');
+const { stacklens } = require('@stacklens/node-tracer');
 stacklens.init({ application: 'orders-api' });
 stacklens.autoInstrument({ include: [__dirname + '/src/'] });
 const app = express();
@@ -66,17 +66,22 @@ On first run you create the admin account. Then add teammates in **Admin → Use
 ## Repository layout
 
 ```
+stacklens/                         the StackLens app (one deployable: `npx stacklens` / Docker)
+  frontend/     stacklens          Next.js UI + thin route adapters (`app/api/**/route.ts`)
+  backend/      @stacklens/backend framework-agnostic core: HTTP handlers, auth, db, repositories, services
 packages/
-  types/        @stacklens/types   shared trace contract (SDK ⇄ server)
-  tracer/       @stacklens/tracer  the SDK – ESM + CJS, typed, tested
-apps/
-  server/       stacklens          collector API + UI (Next.js), `npx stacklens` / Docker
+  contract/     @stacklens/types   wire contract (TS types + trace.schema.json), shared by every SDK and the server
+  shared/       @stacklens/shared  isomorphic helpers used by frontend and backend (span tree, formatters, API types)
+sdks/
+  node/         @stacklens/node-tracer  Node.js SDK – ESM + CJS, typed, tested
+  conformance/                     language-neutral scenarios + checker every SDK must pass
 examples/
-  express-basic/                   plain JS Express API
-  nestjs-typeorm/                  NestJS 11 + TypeORM API
-docker/         Dockerfile (standalone, non-root, healthcheck)
-docs/           architecture.md · deployment.md
-scripts/        generate-traffic.mjs
+  node/express-basic/              plain JS Express API
+  node/nestjs-typeorm/             NestJS 11 + TypeORM API
+deploy/         docker/Dockerfile · docker-compose.yml (with PostgreSQL)
+docs/           architecture · deployment · contract · sdk-authoring
+scripts/        dev-guard.mjs · generate-traffic.mjs
+.claude/        rules and skills for AI-assisted changes (see CLAUDE.md)
 ```
 
 ## Development
@@ -91,14 +96,15 @@ npm run traffic            # optional live traffic
 
 | Command | |
 |---|---|
-| `npm run build` | Build `@stacklens/types`, `@stacklens/tracer` and the server |
+| `npm run build` | Build `@stacklens/types`, `@stacklens/node-tracer` and the server |
 | `npm run lint` / `typecheck` / `test` / `format` | Quality gates (also run in CI) |
 | `npm start` | Run the built server via its CLI |
-| `npm run docker:build` | Build the Docker image |
+| `npm run docker:build` / `docker:up` | Build the Docker image / run it with PostgreSQL |
+| `npm run conformance:node` | Check the Node SDK against the cross-language conformance suite |
 
 ## Documentation
 
-- [SDK reference](packages/tracer/README.md)
+- [SDK reference](sdks/node-tracer/README.md)
 - [Architecture & performance](docs/architecture.md)
 - [Deployment & configuration](docs/deployment.md)
 - [Contributing](CONTRIBUTING.md)

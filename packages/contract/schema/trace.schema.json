@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stacklens.dev/schema/trace/v1.json",
+  "title": "StackLens ingest payload (contract v1)",
+  "description": "Body of POST /api/ingest. Every StackLens SDK, in any language, must produce payloads that validate against this schema. Mirrors packages/contract/src/index.ts; a test keeps the two in sync. Additive changes only within a major version.",
+  "oneOf": [{ "$ref": "#/$defs/IngestRequest" }, { "$ref": "#/$defs/TraceRecord" }],
+  "$defs": {
+    "IngestRequest": {
+      "type": "object",
+      "required": ["traces"],
+      "properties": { "traces": { "type": "array", "items": { "$ref": "#/$defs/TraceRecord" } } },
+      "additionalProperties": false
+    },
+    "SpanKind": { "enum": ["http", "controller", "handler", "service", "repository", "db", "function", "job"] },
+    "SpanStatus": { "enum": ["ok", "error", "pending"] },
+    "LogLevel": { "enum": ["log", "info", "warn", "error", "debug"] },
+    "SpanLog": {
+      "type": "object",
+      "required": ["t", "level", "message"],
+      "properties": {
+        "t": { "type": "number", "description": "Milliseconds since the trace started." },
+        "level": { "$ref": "#/$defs/LogLevel" },
+        "message": { "type": "string" },
+        "data": {}
+      },
+      "additionalProperties": false
+    },
+    "SpanError": {
+      "type": "object",
+      "required": ["name", "message"],
+      "properties": {
+        "name": { "type": "string" },
+        "message": { "type": "string" },
+        "stack": { "type": "string" },
+        "status": { "type": "integer", "description": "HTTP status carried by the error." }
+      },
+      "additionalProperties": false
+    },
+    "CollapsedCalls": {
+      "type": "object",
+      "required": ["count", "totalDuration", "minDuration", "maxDuration", "errors"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 0 },
+        "totalDuration": { "type": "number", "minimum": 0 },
+        "minDuration": { "type": "number", "minimum": 0 },
+        "maxDuration": { "type": "number", "minimum": 0 },
+        "errors": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "SpanRecord": {
+      "type": "object",
+      "description": "One instrumented function call.",
+      "required": ["id", "parentId", "name", "method", "kind", "start", "duration", "status", "async", "params"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "parentId": { "type": ["string", "null"], "description": "null for the root span." },
+        "name": { "type": "string", "description": "Display name, usually ClassName.method." },
+        "className": { "type": "string" },
+        "method": { "type": "string" },
+        "kind": { "$ref": "#/$defs/SpanKind" },
+        "start": { "type": "number", "minimum": 0, "description": "Milliseconds since the trace started." },
+        "duration": { "type": "number", "minimum": 0 },
+        "status": { "$ref": "#/$defs/SpanStatus" },
+        "async": { "type": "boolean" },
+        "params": { "type": "array", "items": { "type": "string" } },
+        "args": { "type": "array" },
+        "argTypes": { "type": "array", "items": { "type": "string" } },
+        "result": {},
+        "resultType": { "type": "string" },
+        "error": { "$ref": "#/$defs/SpanError" },
+        "logs": { "type": "array", "items": { "$ref": "#/$defs/SpanLog" } },
+        "attributes": { "type": "object" },
+        "collapsed": { "$ref": "#/$defs/CollapsedCalls" },
+        "valuesDropped": { "type": "boolean" },
+        "droppedLogs": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "HttpExchange": {
+      "type": "object",
+      "required": ["method", "url"],
+      "properties": {
+        "method": { "type": "string" },
+        "url": { "type": "string" },
+        "route": { "type": "string" },
+        "statusCode": { "type": "integer" },
+        "ip": { "type": "string" },
+        "request": { "type": "object" },
+        "response": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "TraceRecord": {
+      "type": "object",
+      "description": "A complete request or background job with its full call tree.",
+      "required": ["id", "service", "name", "kind", "startTime", "duration", "status", "spans"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "service": { "type": "string" },
+        "application": { "type": "string" },
+        "project": { "type": "string" },
+        "environment": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "kind": { "enum": ["http", "job"] },
+        "startTime": { "type": "number", "description": "Epoch milliseconds." },
+        "duration": { "type": "number", "minimum": 0 },
+        "status": { "$ref": "#/$defs/SpanStatus" },
+        "http": { "$ref": "#/$defs/HttpExchange" },
+        "spans": { "type": "array", "items": { "$ref": "#/$defs/SpanRecord" }, "description": "Flat list; the root span comes first." },
+        "truncated": { "type": "boolean" },
+        "droppedSpans": { "type": "integer", "minimum": 0 },
+        "valuesTruncated": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@stacklens/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pure TypeScript shared by the StackLens frontend and backend: API types, span-tree maths, SQL and type formatters.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@stacklens/types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.7"
+  }
+}

@@ -1,4 +1,4 @@
-// Flat ESLint config for the monorepo. apps/server extends it with Next.js rules in its own
+// Flat ESLint config for the monorepo. stacklens/frontend/ extends it with Next.js rules in its own
 // eslint.config.mjs (linted via `npm run lint -w stacklens`).
 import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
@@ -8,7 +8,7 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   {
     ignores: [
-      'apps/server/**',
+      'stacklens/frontend/**',
       '**/node_modules/**',
       '**/dist/**',
       '**/.next/**',

@@ -10,7 +10,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  # Decide which areas changed so each job only runs when it matters. Pushes to main run everything.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ github.event_name == 'push' || steps.filter.outputs.app == 'true' }}
+      sdk-node: ${{ github.event_name == 'push' || steps.filter.outputs.sdk-node == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - 'packages/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig.base.json'
+              - 'eslint.config.mjs'
+              - '.github/workflows/ci.yml'
+            app:
+              - *shared
+              - 'stacklens/**'
+              - 'deploy/**'
+            sdk-node:
+              - *shared
+              - 'sdks/node-tracer/**'
+              - 'sdks/conformance/**'
+              - 'examples/node/**'
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run build:packages
+      - run: npm run lint
+
+  # Contract + shared + backend + frontend (the StackLens server)
+  app:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -29,23 +74,39 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run format:check
+      - run: npm run build -w @stacklens/types
+      - run: npm run typecheck -w @stacklens/types -w @stacklens/shared -w @stacklens/backend -w stacklens/frontend
+      - run: npm test -w @stacklens/types -w @stacklens/shared -w @stacklens/backend --if-present
+      - run: npm run build -w stacklens/frontend
+
+  # Node.js SDK (@stacklens/node-tracer) + its examples + the cross-language conformance check
+  sdk-node:
+    needs: changes
+    if: needs.changes.outputs.sdk-node == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
       - run: npm run build:packages
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build -w stacklens
+      - run: npm run typecheck -w @stacklens/node-tracer
+      - run: npm test -w @stacklens/node-tracer
+      - run: npm run conformance:node
 
   docker:
+    needs: [changes, app]
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
-    needs: verify
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/Dockerfile
+          file: deploy/docker/Dockerfile
           push: false
           tags: stacklens:ci
           cache-from: type=gha

@@ -1,22 +1,27 @@
 # Architecture
 
 ```
-your API ──(@stacklens/tracer)──► POST /api/ingest ──► StackLens server ──► UI
+your API ──(@stacklens/node-tracer)──► POST /api/ingest ──► StackLens server ──► UI
                                                          │   ▲  LISTEN/NOTIFY (live updates)
                                                          ▼   │
                                                    PostgreSQL (traces, error_events, incidents, user_settings)
 ```
 
-## Packages
+## Repository layout
 
 | Path | Package | Role |
 |---|---|---|
-| `packages/types` | `@stacklens/types` | Wire contract: `TraceRecord`, `SpanRecord`, ingest request. Shared by SDK and server. |
-| `packages/tracer` | `@stacklens/tracer` | SDK, embedded in your app. ESM + CJS. |
-| `apps/server` | `stacklens` | Collector API + UI (Next.js). Shipped as an npm CLI and a Docker image. |
-| `examples/*` | private | Runnable demo apps. |
+| `packages/contract` | `@stacklens/types` | Wire contract: TS types plus `schema/trace.schema.json`, the language-neutral source of truth for every SDK. |
+| `packages/shared` | `@stacklens/shared` (private) | Isomorphic helpers used by frontend and backend: API types, span-tree maths, SQL/type formatters, config defaults. |
+| `sdks/node-tracer` | `@stacklens/node-tracer` | Node.js SDK, embedded in your app. ESM + CJS. |
+| `sdks/conformance` | — | Scenarios + checker every SDK (any language) must pass. |
+| `stacklens/backend` | `@stacklens/backend` (private) | Server core with no Next.js dependency: HTTP handlers (`Request → Response`), auth, db, repositories, services. |
+| `stacklens/frontend` | `stacklens` | Next.js UI. Compiles the backend in (`transpilePackages`) and ships as one npm CLI / Docker image. |
+| `examples/<language>/*` | private | Runnable demo apps. |
 
-## SDK (`packages/tracer/src`)
+Dependency direction: `frontend → backend → shared → contract`, and `sdks/* → contract`. Nothing depends on the frontend, and the backend never imports Next.js or React.
+
+## Node SDK (`sdks/node-tracer/src`)
 
 | Folder | Contents |
 |---|---|
@@ -43,15 +48,31 @@ Export never blocks a response: traces are JSON-encoded one at a time and sent i
 
 At full load on the Express example, tracing every request costs about 5–20% throughput, +1ms median latency, and p99 within ~1–7ms of untraced.
 
-## Server (`apps/server/src`)
+## Server
+
+### Backend (`stacklens/backend/src`)
 
 | Folder | Contents |
 |---|---|
-| `app/` | Next.js routes only: thin `page.tsx` files (metadata + re-export) and `api/**/route.ts` handlers. |
-| `features/<name>/` | Page implementations and their private components: overview, traces, errors, incidents, hotspots, settings, setup. |
-| `components/` | Shared UI: `ui/` (primitives), `layout/` (sidebar, filter bar, time picker), `charts/`, `data-display/` (JSON viewer, pagination, badges). |
-| `lib/` | Isomorphic helpers: API types, span-tree maths, URL filter state, settings context, formatting. |
-| `server/` | `server-only` modules: `env.ts` (all configuration), `db/` (connection + migrations), `repositories/` (SQL for traces, incidents, settings), `trace-summary.ts`, `maintenance.ts` (retention, legacy import), `incident-service.ts` (ServiceNow / demo), `parse-query.ts`. |
+| `http/` | One file per API route (`traces/_id.ts` = `/api/traces/[id]`), exporting `GET`/`POST`/… as plain `(Request, ctx) => Response` functions. `request-context.ts` holds the per-request AsyncLocalStorage (headers, cookies, queued `Set-Cookie`) set up by `route()` / `withAuth()`. |
+| `auth/` | Sessions, password hashing, `withAuth` role guard, rate limiting. |
+| `db/` | Connection (PostgreSQL via `pg`, or embedded PGlite) and forward-only migrations. |
+| `repositories/` | All SQL: traces, accounts, config, incidents, SLOs, views. |
+| `services/` | Incident (ServiceNow / demo), digest, maintenance (retention, legacy import). |
+| `domain/` | Pure logic: query parsing, trace summaries. |
+| `env.ts` | All configuration. |
+
+Because handlers only use web-standard `Request`/`Response`, the same backend can be mounted on another HTTP server later without touching the UI.
+
+### Frontend (`stacklens/frontend/src`)
+
+| Folder | Contents |
+|---|---|
+| `app/` | Next.js routes only: thin `page.tsx` files and `api/**/route.ts` adapters (`export { GET } from '@stacklens/backend/http/…'`). |
+| `features/<name>/` | Page implementations and their private components. |
+| `components/` | Shared UI: `ui/`, `layout/`, `charts/`, `data-display/`. |
+| `lib/` | Client helpers: URL filter state, settings context, formatting. |
+| `server/session.ts` | Reads the session cookie for server components (`cookies()` → `userForToken`). |
 
 **Storage: PostgreSQL.**
 - **Production:** set `DATABASE_URL` to use an external PostgreSQL server (via `pg`, pooled).

@@ -1,0 +1,55 @@
+{
+  "name": "@stacklens/types",
+  "version": "0.1.0",
+  "description": "Shared trace contract between the StackLens SDK and server",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anjanirathamsetti/stacklens.git",
+    "directory": "packages/contract"
+  },
+  "homepage": "https://github.com/anjanirathamsetti/stacklens/tree/main/packages/contract#readme",
+  "bugs": {
+    "url": "https://github.com/anjanirathamsetti/stacklens/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json",
+    "./schema.json": "./schema/trace.schema.json",
+    "./schema/validate": {
+      "types": "./schema/validate.d.mts",
+      "default": "./schema/validate.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "schema"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.7"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
