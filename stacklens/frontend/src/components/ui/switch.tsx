@@ -31,8 +31,9 @@ export function Switch({
     >
       <span
         className={cn(
-          'pointer-events-none block size-4 rounded-full bg-white shadow-sm ring-0 transition-transform',
-          checked ? 'translate-x-4' : 'translate-x-0.5',
+          'pointer-events-none block size-4 rounded-full shadow-sm ring-0 transition-transform',
+          // the thumb contrasts with the track: page colour on the accent, white when off
+          checked ? 'translate-x-4 bg-background' : 'translate-x-0.5 bg-white',
         )}
       />
     </button>

@@ -128,7 +128,7 @@ function NavLink({ item, collapsed, nested }: { item: NavItem; collapsed: boolea
       className={cn(
         'relative flex items-center rounded-md text-sm transition-colors',
         collapsed ? 'mx-auto size-9 justify-center' : nested ? 'h-8 gap-2.5 px-2.5' : 'h-9 gap-2.5 px-2.5',
-        active ? 'bg-accent font-medium text-brand' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+        active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
       )}
     >
       {nested && !collapsed && active && <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-px bg-brand" />}
@@ -173,9 +173,8 @@ function NavSection({
         aria-expanded={open}
         className={cn(
           'group flex h-9 w-full items-center gap-2.5 rounded-lg border px-2.5 text-sm transition-all cursor-pointer',
-          containsActive
-            ? 'border-border bg-background font-medium text-foreground shadow-xs'
-            : 'border-transparent text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+          'font-semibold text-foreground',
+          containsActive ? 'border-border bg-background shadow-xs' : 'border-transparent hover:bg-accent/60',
         )}
       >
         <Icon className={cn('size-4 shrink-0', containsActive && 'text-brand')} />
@@ -212,7 +211,7 @@ function PinnedViews({ collapsed }: { collapsed: boolean }) {
             className={cn(
               'relative flex items-center rounded-md text-sm transition-colors',
               collapsed ? 'mx-auto size-9 justify-center' : 'h-8 gap-2.5 px-2.5',
-              active ? 'bg-accent font-medium text-brand' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
             )}
           >
             {!collapsed && active && <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-px bg-brand" />}
@@ -375,7 +374,7 @@ function FooterLinks({ collapsed }: { collapsed: boolean }) {
             className={cn(
               'group flex items-center rounded-md text-sm transition-colors',
               collapsed ? 'mx-auto size-9 justify-center' : 'h-8 gap-2.5 px-2.5',
-              active ? 'bg-accent font-medium text-brand' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
             )}
           >
             <l.icon className="size-4 shrink-0" />

@@ -53,7 +53,10 @@ function RolePicker({ value, onChange }: { value: Role; onChange: (r: Role) => v
           )}
         >
           <span
-            className={cn('mt-0.5 grid size-4 place-items-center rounded-full border', value === r && 'border-brand bg-brand text-white')}
+            className={cn(
+              'mt-0.5 grid size-4 place-items-center rounded-full border',
+              value === r && 'border-brand bg-brand text-background',
+            )}
           >
             {value === r && <Check className="size-3" />}
           </span>
