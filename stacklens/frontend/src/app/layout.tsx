@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist, Geist_Mono, Outfit } from 'next/font/google';
 import { Providers } from '@/components/layout/providers';
 import '@/app/globals.css';
 
 const sans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' });
 const mono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' });
+/** Wordmark only (see components/brand/logo.tsx). */
+const brand = Outfit({ subsets: ['latin'], weight: '500', variable: '--font-outfit' });
 
 export const metadata: Metadata = {
   title: { default: 'StackLens', template: '%s · StackLens' },
@@ -15,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${sans.variable} ${mono.variable} font-sans`}>
+      <body className={`${sans.variable} ${mono.variable} ${brand.variable} font-sans`}>
         <Providers>{children}</Providers>
       </body>
     </html>

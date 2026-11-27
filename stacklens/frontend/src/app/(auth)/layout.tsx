@@ -1,4 +1,4 @@
-import { Layers } from 'lucide-react';
+import { Logo } from '@/components/brand/logo';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,11 +15,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:48px_48px] opacity-30 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]"
       />
       <div className="relative w-full max-w-[400px]">
-        <div className="mb-6 flex items-center justify-center gap-2.5">
-          <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <Layers className="size-5" />
-          </span>
-          <span className="text-lg font-semibold tracking-tight">StackLens</span>
+        <div className="mb-6 flex justify-center">
+          <Logo markClassName="size-8" wordmarkClassName="text-2xl" />
         </div>
         {children}
         <p className="mt-6 text-center text-xs text-muted-foreground">Call-tree tracing for Node.js backends</p>

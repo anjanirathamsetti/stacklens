@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronsUpDown,
   Keyboard,
-  Layers,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -18,6 +17,7 @@ import {
   User,
   type LucideIcon,
 } from 'lucide-react';
+import { LogoMark, Wordmark } from '@/components/brand/logo';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -425,19 +425,15 @@ export function AppSidebar() {
               className="group relative grid size-9 place-items-center rounded-lg cursor-pointer"
               aria-label="Expand sidebar"
             >
-              <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm transition-opacity group-hover:opacity-0">
-                <Layers className="size-4" />
-              </span>
+              <LogoMark className="size-7 transition-opacity group-hover:opacity-0" />
               <PanelLeftOpen className="absolute size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             </button>
           </Tooltip>
         ) : (
           <>
             <Link href="/overview" className="flex min-w-0 items-center gap-2.5" aria-label="StackLens home">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                <Layers className="size-4" />
-              </span>
-              <span className="truncate text-[15px] font-semibold tracking-tight">StackLens</span>
+              <LogoMark className="size-7" />
+              <Wordmark className="truncate text-[19px]" />
             </Link>
             <Tooltip content="Collapse sidebar (⌘B)" side="right">
               <button
