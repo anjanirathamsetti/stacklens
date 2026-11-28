@@ -1,7 +1,8 @@
 # Example apps for the StackLens Python SDK. From the repo root:
 #   python3 -m venv examples/python/.venv
 #   examples/python/.venv/bin/pip install -r examples/python/requirements.txt
--e ../../sdks/python-tracer
+# (paths are relative to where pip runs: the repo root)
+-e ./sdks/python-tracer
 fastapi>=0.110
 uvicorn>=0.29
 sqlalchemy>=2.0
