@@ -5,6 +5,7 @@ import {
   Flame,
   Gauge,
   Keyboard,
+  LifeBuoy,
   LayoutDashboard,
   Newspaper,
   Palette,
@@ -15,7 +16,6 @@ import {
   Siren,
   SlidersHorizontal,
   Target,
-  User,
   type LucideIcon,
 } from 'lucide-react';
 import { ADMIN_SECTIONS } from '@/features/admin/admin-nav';
@@ -61,63 +61,67 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-/** A Workspace entry: a page, optionally with sub-pages that unfold under it. */
-export interface WorkspaceItem extends NavItem {
-  /** shown only to admins */
-  adminOnly?: boolean;
-  /** shown on hover, e.g. `⌘,` */
+/** A link in one of the lower sidebar groups. `tab` marks a tab of /settings (matched on `?tab=`). */
+export interface SideItem extends NavItem {
+  tab?: string;
+  /** shown on hover, e.g. `?` */
   shortcut?: string;
-  /** `?tab=` value(s) of /settings this entry stands for */
-  tabs?: string[];
-  children?: (NavItem & { tab?: string })[];
+}
+
+export interface SideGroup {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  /** shown to admins only */
+  adminOnly?: boolean;
+  items: SideItem[];
 }
 
 /**
- * Setup, personal settings and team administration: everything that configures StackLens rather than
- * shows data. Settings and Admin unfold into their sub-pages.
+ * Below the data sections: personal preferences, team administration (admins) and help.
+ * The profile lives in the account menu at the bottom of the sidebar.
  */
-export const WORKSPACE_GROUP: { id: string; label: string; icon: LucideIcon; items: WorkspaceItem[] } = {
-  id: 'workspace',
-  label: 'Workspace',
-  icon: SlidersHorizontal,
-  items: [
-    { href: '/setup', label: 'Setup guide', icon: BookOpen, keywords: 'install sdk instrument python node' },
-    {
-      href: '/settings?tab=profile',
-      label: 'Settings',
-      icon: Settings,
-      shortcut: '⌘,',
-      tabs: ['profile', 'appearance', 'thresholds'],
-      children: [
-        { href: '/settings?tab=profile', tab: 'profile', label: 'Profile', icon: User, keywords: 'name email password' },
-        {
-          href: '/settings?tab=appearance',
-          tab: 'appearance',
-          label: 'Appearance',
-          icon: Palette,
-          keywords: 'theme dark light time format',
-        },
-        { href: '/settings?tab=thresholds', tab: 'thresholds', label: 'Health thresholds', icon: Gauge, keywords: 'latency error rate' },
-      ],
-    },
-    {
-      href: '/settings?tab=shortcuts',
-      label: 'Keyboard shortcuts',
-      icon: Keyboard,
-      shortcut: '?',
-      tabs: ['shortcuts'],
-      keywords: 'keys hotkeys',
-    },
-    {
-      href: '/admin',
-      label: 'Admin',
-      icon: Shield,
-      adminOnly: true,
-      keywords: 'users keys security',
-      children: ADMIN_SECTIONS.flatMap((g) => g.items),
-    },
-  ],
-};
+export const SIDE_GROUPS: SideGroup[] = [
+  {
+    id: 'preferences',
+    label: 'Preferences',
+    icon: SlidersHorizontal,
+    items: [
+      {
+        href: '/settings?tab=appearance',
+        tab: 'appearance',
+        label: 'Appearance',
+        icon: Palette,
+        shortcut: '⌘,',
+        keywords: 'theme dark light time format',
+      },
+      { href: '/settings?tab=thresholds', tab: 'thresholds', label: 'Health thresholds', icon: Gauge, keywords: 'latency error rate' },
+    ],
+  },
+  {
+    id: 'admin',
+    label: 'Admin',
+    icon: Shield,
+    adminOnly: true,
+    items: ADMIN_SECTIONS.flatMap((g) => g.items),
+  },
+  {
+    id: 'help',
+    label: 'Help',
+    icon: LifeBuoy,
+    items: [
+      { href: '/setup', label: 'Setup guide', icon: BookOpen, keywords: 'install sdk instrument python node' },
+      {
+        href: '/settings?tab=shortcuts',
+        tab: 'shortcuts',
+        label: 'Keyboard shortcuts',
+        icon: Keyboard,
+        shortcut: '?',
+        keywords: 'keys hotkeys',
+      },
+    ],
+  },
+];
 
 /** Pages that don't take the global filters (time range, app, user) along. */
 export const UNFILTERED = ['/setup', '/settings', '/admin'];

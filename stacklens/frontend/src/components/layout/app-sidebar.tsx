@@ -1,17 +1,19 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import {
   Bookmark,
   ChevronDown,
-  ChevronRight,
   ChevronsUpDown,
   LogOut,
+  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
   Shield,
+  Sun,
   User,
   type LucideIcon,
 } from 'lucide-react';
@@ -25,7 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip } from '@/components/ui/tooltip';
 import { openCommandPalette } from '@/components/layout/command-palette';
-import { NAV_GROUPS, UNFILTERED, WORKSPACE_GROUP, isActive, type NavItem, type WorkspaceItem } from '@/components/layout/nav-config';
+import { NAV_GROUPS, SIDE_GROUPS, UNFILTERED, isActive, type NavItem, type SideItem } from '@/components/layout/nav-config';
 import { useFilters } from '@/lib/url-filters';
 import { normalizeQuery, useSavedViews } from '@/lib/saved-views';
 import { initials, useSettings } from '@/lib/settings-context';
@@ -229,112 +231,89 @@ function PinnedViews({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-const linkClass = (active: boolean, collapsed: boolean, size: 'h-8' | 'h-7' = 'h-8') =>
-  cn(
-    'group relative flex items-center rounded-md text-sm transition-colors',
-    collapsed ? 'mx-auto size-9 justify-center' : `${size} gap-2.5 px-2.5`,
-    active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
-  );
-
-/** Is this Workspace entry (or one of its sub-pages) the current page? */
-function useWorkspaceMatch() {
+/** Is this lower-group link the current page? Settings tabs match on `?tab=`. */
+function useSideMatch() {
   const pathname = usePathname();
   const tab = useSearchParams().get('tab') ?? 'profile';
-  const self = (i: WorkspaceItem) => (i.tabs ? pathname === '/settings' && i.tabs.includes(tab) : isActive(pathname, i.href.split('?')[0]));
-  const child = (c: NonNullable<WorkspaceItem['children']>[number]) =>
-    c.tab ? pathname === '/settings' && tab === c.tab : isActive(pathname, c.href);
-  return { self, child };
+  return (i: SideItem) => (i.tab ? pathname === '/settings' && tab === i.tab : isActive(pathname, i.href));
 }
 
-/** One Workspace entry; Settings and Admin unfold into their sub-pages (open while you're on one). */
-function WorkspaceLink({ item, collapsed }: { item: WorkspaceItem; collapsed: boolean }) {
-  const match = useWorkspaceMatch();
-  const active = match.self(item);
-  const [open, setOpen] = useState(active);
-  // unfold when navigating into the section, fold again when leaving it (the chevron toggles in between)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setOpen(active), [active]);
+function SideLink({ item, collapsed, active }: { item: SideItem; collapsed: boolean; active: boolean }) {
   const Icon = item.icon;
-  const hasChildren = !!item.children?.length && !collapsed;
   const link = (
     <Link
       href={item.href}
       aria-label={item.label}
-      aria-current={active && !hasChildren ? 'page' : undefined}
-      className={cn(linkClass(active && !hasChildren, collapsed), hasChildren && active && 'text-foreground', hasChildren && 'pr-8')}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'group relative flex items-center rounded-md text-sm transition-colors',
+        collapsed ? 'mx-auto size-9 justify-center' : 'h-8 gap-2.5 px-2.5',
+        active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+      )}
     >
-      {!collapsed && active && !hasChildren && <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-px bg-brand" />}
-      <Icon className={cn('size-4 shrink-0', hasChildren && active && 'text-brand')} />
+      {!collapsed && active && <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-px bg-brand" />}
+      <Icon className="size-4 shrink-0" />
       {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-      {!collapsed && item.shortcut && !hasChildren && (
+      {!collapsed && item.shortcut && (
         <kbd className="font-mono text-[10px] text-muted-foreground/70 opacity-0 transition-opacity group-hover:opacity-100">
           {item.shortcut}
         </kbd>
       )}
     </Link>
   );
-  if (collapsed)
-    return (
-      <Tooltip content={item.shortcut ? `${item.label} (${item.shortcut})` : item.label} side="right">
-        {link}
-      </Tooltip>
-    );
-  if (!hasChildren) return link;
-  return (
-    <div>
-      <div className="relative">
-        {link}
-        <button
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-label={`${open ? 'Hide' : 'Show'} ${item.label} pages`}
-          className="absolute right-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded text-muted-foreground/70 hover:bg-accent hover:text-foreground cursor-pointer"
-        >
-          <ChevronRight className={cn('size-3.5 transition-transform duration-200', open && 'rotate-90')} />
-        </button>
-      </div>
-      <div className={cn('grid transition-[grid-template-rows] duration-200 ease-out', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
-        <div className="overflow-hidden">
-          <div className="ml-[17px] mt-0.5 space-y-0.5 border-l border-border pl-2.5">
-            {item.children!.map((c) => {
-              const on = match.child(c);
-              const CIcon = c.icon;
-              return (
-                <Link
-                  key={c.href}
-                  href={c.href}
-                  aria-current={on ? 'page' : undefined}
-                  className={cn(linkClass(on, false, 'h-7'), 'text-[13px]')}
-                >
-                  {on && <span className="absolute -left-[11px] top-1 bottom-1 w-px bg-brand" />}
-                  <CIcon className="size-3.5 shrink-0" />
-                  <span className="truncate">{c.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
+  return collapsed ? (
+    <Tooltip content={item.shortcut ? `${item.label} (${item.shortcut})` : item.label} side="right">
+      {link}
+    </Tooltip>
+  ) : (
+    link
   );
 }
 
-function WorkspaceSection({ collapsed }: { collapsed: boolean }) {
+/** Preferences, Admin (admins only) and Help. */
+function SideGroups({ collapsed }: { collapsed: boolean }) {
   const { can } = useCurrentUser();
-  const match = useWorkspaceMatch();
-  const items = WORKSPACE_GROUP.items.filter((i) => !i.adminOnly || can('admin'));
+  const isOn = useSideMatch();
   return (
-    <NavSection
-      id={WORKSPACE_GROUP.id}
-      label={WORKSPACE_GROUP.label}
-      icon={WORKSPACE_GROUP.icon}
-      containsActive={items.some((i) => match.self(i))}
-      collapsed={collapsed}
-    >
-      {items.map((i) => (
-        <WorkspaceLink key={i.href} item={i} collapsed={collapsed} />
+    <>
+      {SIDE_GROUPS.filter((g) => !g.adminOnly || can('admin')).map((g) => (
+        <NavSection key={g.id} id={g.id} label={g.label} icon={g.icon} containsActive={g.items.some(isOn)} collapsed={collapsed}>
+          {g.items.map((i) => (
+            <SideLink key={i.href} item={i} collapsed={collapsed} active={isOn(i)} />
+          ))}
+        </NavSection>
       ))}
-    </NavSection>
+    </>
+  );
+}
+
+/** Sun / moon button: switches between the light and dark theme (saved with your settings). */
+function ThemeToggle({ collapsed }: { collapsed: boolean }) {
+  const { resolvedTheme, setTheme } = useTheme();
+  const toggle = () => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
+  // both icons are rendered and swapped by the `dark` class, so server and client markup match
+  const button = (
+    <button
+      onClick={toggle}
+      aria-label="Switch between light and dark theme"
+      className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground cursor-pointer"
+    >
+      <Sun className="hidden size-4 dark:block" />
+      <Moon className="size-4 dark:hidden" />
+    </button>
+  );
+  return (
+    <Tooltip
+      content={
+        <span>
+          <span className="dark:hidden">Dark theme</span>
+          <span className="hidden dark:inline">Light theme</span>
+        </span>
+      }
+      side={collapsed ? 'right' : 'top'}
+    >
+      {button}
+    </Tooltip>
   );
 }
 
@@ -356,15 +335,15 @@ function Nav({ collapsed }: { collapsed: boolean }) {
           ))}
         </NavSection>
       ))}
-      <WorkspaceSection collapsed={collapsed} />
       <PinnedViews collapsed={collapsed} />
+      <SideGroups collapsed={collapsed} />
     </nav>
   );
 }
 
 /**
  * Account button at the bottom of the sidebar: profile, admin and sign-out only.
- * Settings, the setup guide, shortcuts and admin pages are in the Workspace group.
+ * Preferences, admin pages and help are sidebar groups (see SIDE_GROUPS).
  */
 function AccountMenu({ collapsed }: { collapsed: boolean }) {
   const { user, can } = useCurrentUser();
@@ -497,10 +476,19 @@ export function AppSidebar() {
       </Suspense>
 
       {/* account */}
-      <div className={cn('shrink-0 border-t border-border/70 pb-3 pt-2', collapsed ? 'flex justify-center px-2' : 'px-3')}>
-        <Suspense>
-          <AccountMenu collapsed={collapsed} />
-        </Suspense>
+      <div
+        className={cn(
+          'flex shrink-0 border-t border-border/70 pb-3 pt-2',
+          collapsed ? 'flex-col items-center gap-2 px-2' : 'items-center gap-1 px-3',
+        )}
+      >
+        {collapsed && <ThemeToggle collapsed />}
+        <div className={cn(!collapsed && 'min-w-0 flex-1')}>
+          <Suspense>
+            <AccountMenu collapsed={collapsed} />
+          </Suspense>
+        </div>
+        {!collapsed && <ThemeToggle collapsed={false} />}
       </div>
     </aside>
   );
