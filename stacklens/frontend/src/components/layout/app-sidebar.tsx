@@ -108,7 +108,7 @@ function NavLink({ item, collapsed, nested }: { item: NavItem; collapsed: boolea
       className={cn(
         'relative flex items-center rounded-md text-sm transition-colors',
         collapsed ? 'mx-auto size-9 justify-center' : nested ? 'h-8 gap-2.5 px-2.5' : 'h-9 gap-2.5 px-2.5',
-        active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+        active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-hover hover:text-foreground',
       )}
     >
       {nested && !collapsed && active && <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-px bg-brand" />}
@@ -154,7 +154,7 @@ function NavSection({
         className={cn(
           'group flex h-9 w-full items-center gap-2.5 rounded-lg border px-2.5 text-sm transition-all cursor-pointer',
           'font-semibold text-foreground',
-          containsActive ? 'border-border bg-background shadow-xs' : 'border-transparent hover:bg-accent/60',
+          containsActive ? 'border-border bg-background shadow-xs' : 'border-transparent hover:bg-hover',
         )}
       >
         <Icon className={cn('size-4 shrink-0', containsActive && 'text-brand')} />
@@ -191,7 +191,7 @@ function PinnedViews({ collapsed }: { collapsed: boolean }) {
             className={cn(
               'relative flex items-center rounded-md text-sm transition-colors',
               collapsed ? 'mx-auto size-9 justify-center' : 'h-8 gap-2.5 px-2.5',
-              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-hover hover:text-foreground',
             )}
           >
             {!collapsed && active && <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-px bg-brand" />}
@@ -227,7 +227,7 @@ function BottomLinks({ collapsed }: { collapsed: boolean }) {
             className={cn(
               'group flex items-center rounded-md text-sm transition-colors',
               collapsed ? 'mx-auto size-9 justify-center' : 'h-8 gap-2.5 px-2.5',
-              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-hover hover:text-foreground',
             )}
           >
             <l.icon className="size-4 shrink-0" />
@@ -252,7 +252,7 @@ function BottomLinks({ collapsed }: { collapsed: boolean }) {
 }
 
 const ICON_BUTTON =
-  'grid h-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground cursor-pointer';
+  'grid h-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-hover hover:text-foreground cursor-pointer';
 
 /** The signed-in user's avatar; hovering or focusing it shows their name and email. */
 function UserAvatar({ collapsed }: { collapsed: boolean }) {
@@ -401,7 +401,7 @@ export function AppSidebar() {
             <Tooltip content="Collapse sidebar (⌘B)" side="right">
               <button
                 onClick={() => setCollapsed(true)}
-                className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground cursor-pointer"
+                className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-hover hover:text-foreground cursor-pointer"
                 aria-label="Collapse sidebar"
               >
                 <PanelLeftClose className="size-4" />

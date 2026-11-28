@@ -80,8 +80,8 @@ export function SettingsNav() {
                     scroll={false}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                      active && 'bg-accent font-medium text-foreground',
+                      'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-sm text-muted-foreground transition-colors hover:bg-hover hover:text-foreground',
+                      active && 'bg-brand/12 font-medium text-foreground hover:bg-brand/12',
                     )}
                   >
                     <l.icon className={cn('size-4', active && 'text-brand')} />
