@@ -11,7 +11,7 @@ import { BOTTOM_LINKS, NAV_GROUPS, UNFILTERED, isActive, type NavItem } from '@/
 import { useFilters } from '@/lib/url-filters';
 import { normalizeQuery, useSavedViews } from '@/lib/saved-views';
 import { initials, useSettings } from '@/lib/settings-context';
-import { ROLE_LABELS, signOut, useCurrentUser } from '@/lib/current-user';
+import { signOut, useCurrentUser } from '@/lib/current-user';
 import { cn } from '@/lib/utils';
 
 /* ------------------------------- state hooks ------------------------------- */
@@ -211,7 +211,7 @@ function PinnedViews({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-/** Settings, pinned above the signed-in user. It covers /settings and the team pages under /admin. */
+/** Settings, pinned above the icon row. It covers /settings and the team pages under /admin. */
 function BottomLinks({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname();
   return (
@@ -254,7 +254,32 @@ function BottomLinks({ collapsed }: { collapsed: boolean }) {
 const ICON_BUTTON =
   'grid h-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground cursor-pointer';
 
-/** The icon row at the very bottom: setup guide, light/dark theme and sign out (stacked when collapsed). */
+/** The signed-in user's avatar; hovering or focusing it shows their name and email. */
+function UserAvatar({ collapsed }: { collapsed: boolean }) {
+  const { user } = useCurrentUser();
+  const { name, email } = user;
+  return (
+    <Tooltip
+      content={
+        <span className="block leading-snug">
+          <span className="block font-semibold">{name}</span>
+          <span className="block opacity-80">{email}</span>
+        </span>
+      }
+      side={collapsed ? 'right' : 'top'}
+    >
+      <span
+        tabIndex={0}
+        aria-label={`Signed in as ${name}, ${email}`}
+        className={cn('grid h-9 place-items-center rounded-md', collapsed ? 'size-9' : 'w-full')}
+      >
+        <Avatar name={name} className="size-7 text-[10.5px]" />
+      </span>
+    </Tooltip>
+  );
+}
+
+/** The icon row at the very bottom: you, setup guide, light/dark theme and sign out (stacked when collapsed). */
 function FooterIcons({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
@@ -269,9 +294,10 @@ function FooterIcons({ collapsed }: { collapsed: boolean }) {
     <div
       className={cn(
         'shrink-0 border-t border-border/70 py-2',
-        collapsed ? 'flex flex-col items-center gap-1' : 'mx-3 grid grid-cols-3 gap-1',
+        collapsed ? 'flex flex-col items-center gap-1' : 'mx-3 grid grid-cols-4 gap-1',
       )}
     >
+      <UserAvatar collapsed={collapsed} />
       {tip(
         'Setup guide',
         <Link
@@ -328,31 +354,6 @@ function Nav({ collapsed }: { collapsed: boolean }) {
       ))}
       <PinnedViews collapsed={collapsed} />
     </nav>
-  );
-}
-
-/** Who is signed in, and with which role. Profile editing is in Settings. */
-function Identity({ collapsed }: { collapsed: boolean }) {
-  const { user } = useCurrentUser();
-  const { name, email } = user;
-  const role = ROLE_LABELS[user.role].label;
-  if (collapsed)
-    return (
-      <Tooltip content={`${name} · ${role}`} side="right">
-        <span className="mx-auto block w-fit">
-          <Avatar name={name} className="size-8 text-[11px]" />
-        </span>
-      </Tooltip>
-    );
-  return (
-    <div className="flex items-center gap-2.5 px-4 py-2">
-      <Avatar name={name} className="size-8 rounded-lg text-[11px]" />
-      <span className="min-w-0 flex-1 leading-tight">
-        <span className="block truncate text-sm font-medium">{name}</span>
-        <span className="block truncate text-xs text-muted-foreground">{email}</span>
-      </span>
-      <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{role}</span>
-    </div>
   );
 }
 
@@ -423,9 +424,6 @@ export function AppSidebar() {
         <BottomLinks collapsed={collapsed} />
       </Suspense>
 
-      <div className={cn('shrink-0', collapsed ? 'py-2' : 'pt-1')}>
-        <Identity collapsed={collapsed} />
-      </div>
       <FooterIcons collapsed={collapsed} />
     </aside>
   );

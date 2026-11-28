@@ -58,7 +58,7 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-/** Pinned above the signed-in user (team settings included, for admins). Setup, theme and sign out are icons below. */
+/** Pinned above the icon row (team settings included, for admins). Setup, theme and sign out are icons below it. */
 export const BOTTOM_LINKS: (NavItem & { shortcut?: string; match: string[] })[] = [
   {
     href: '/settings?tab=profile',
