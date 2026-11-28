@@ -93,3 +93,44 @@ describe('formatSignature', () => {
     expect(kinds).toMatchObject({ user: 'key', User: 'type', tags: 'key', string: 'primitive' });
   });
 });
+
+describe('Python types and signatures', () => {
+  it('formats a Python signature with def and ->', () => {
+    expect(
+      formatSignature({
+        language: 'python',
+        async: true,
+        name: 'create_quote',
+        params: [
+          { name: 'user', type: 'dict[str, Any]' },
+          { name: 'zip_code', type: 'str' },
+        ],
+        returnType: 'Quote',
+      }),
+    ).toBe('async def create_quote(user: dict[str, Any], zip_code: str) -> Quote');
+  });
+
+  it('breaks long Python signatures one parameter per line', () => {
+    const out = formatSignature(
+      {
+        language: 'python',
+        name: 'reserve',
+        params: [
+          { name: 'items', type: 'list[{ sku: str; qty: int; warehouse: str }]' },
+          { name: 'order_ref', type: 'str' },
+        ],
+        returnType: 'Reservation { id: int; warehouse_code: str }',
+      },
+      40,
+    );
+    expect(out.startsWith('def reserve(\n  items: ')).toBe(true);
+    expect(out).toContain('\n) -> Reservation');
+  });
+
+  it('tokenizes Python primitives and arrows', () => {
+    const toks = tokenizeType('(a, b) -> None | int');
+    expect(toks.find((t) => t.text === '->')?.type).toBe('op');
+    expect(toks.find((t) => t.text === 'None')?.type).toBe('primitive');
+    expect(toks.find((t) => t.text === 'int')?.type).toBe('primitive');
+  });
+});

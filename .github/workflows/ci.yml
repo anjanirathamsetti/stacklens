@@ -21,6 +21,7 @@ jobs:
     outputs:
       app: ${{ github.event_name == 'push' || steps.filter.outputs.app == 'true' }}
       sdk-node: ${{ github.event_name == 'push' || steps.filter.outputs.sdk-node == 'true' }}
+      sdk-python: ${{ github.event_name == 'push' || steps.filter.outputs.sdk-python == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -43,6 +44,12 @@ jobs:
               - 'sdks/node-tracer/**'
               - 'sdks/conformance/**'
               - 'examples/node/**'
+            sdk-python:
+              - 'sdks/python-tracer/**'
+              - 'examples/python/**'
+              - 'packages/contract/**'
+              - 'sdks/conformance/**'
+              - '.github/workflows/ci.yml'
 
   lint:
     runs-on: ubuntu-latest
@@ -100,6 +107,33 @@ jobs:
       - run: npm run typecheck -w @stacklens/node-tracer
       - run: npm test -w @stacklens/node-tracer
       - run: npm run conformance:node
+
+  # Python SDK (stacklens-python-tracer): pytest on the oldest and newest supported Python + the conformance check
+  sdk-python:
+    needs: changes
+    if: needs.changes.outputs.sdk-python == 'true'
+    # pinned: ubuntu-latest (26.04) has no Python 3.9 build for actions/setup-python
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.9', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: sdks/python-tracer/pyproject.toml
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: pip install -e "sdks/python-tracer[test]"
+      - run: python -m pytest -q
+        working-directory: sdks/python-tracer
+      # the runner itself is standard-library only; check.mjs validates against trace.schema.json
+      - run: python sdks/conformance/python-tracer/run.py | node sdks/conformance/check.mjs -
+      - run: python -m compileall -q examples/python
 
   docker:
     needs: [changes, app]

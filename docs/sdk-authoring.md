@@ -23,7 +23,8 @@ Use the language's own build tool and package registry (PyPI, Maven, Go modules�
 5. **Cardinality:** after `maxRepeatedCalls` identical sibling calls, fold the rest into one span with `collapsed`; stop recording after `maxSpansPerTrace` and set `truncated` / `droppedSpans`.
 6. **Errors and logs:** set `status: "error"` and `error { name, message, stack }` on the span that threw; attach log lines to the current span.
 7. **Export:** batch traces and `POST` them to `STACKLENS_ENDPOINT` (default `http://localhost:4300/api/ingest`) in the background, with `Authorization: Bearer <STACKLENS_API_KEY>` when set. Never block or fail the user's request.
-8. **Options:** read the same names as the Node SDK (`application`, `project`, `environment`, `endpoint`, `apiKey`, `sampleRate`, `captureArgs`, `captureResults`, …), from code or `STACKLENS_*` environment variables.
+8. **Options:** read the same names as the Node SDK (`application`, `project`, `environment`, `endpoint`, `apiKey`, `sampleRate`, `captureArgs`, `captureResults`, …), in the language's casing (Python: `sample_rate`), from code or `STACKLENS_*` environment variables.
+9. **Identify yourself:** set `sdk: { name, version, language, runtime }` on every trace so the UI can show the language and use its idioms. Use the language's own type names in `argTypes`/`resultType` and its native stack-trace format.
 
 ## Proving it
 
@@ -33,4 +34,6 @@ Implement the scenarios in [`sdks/conformance/scenarios.json`](../sdks/conforman
 <your runner> | node sdks/conformance/check.mjs -
 ```
 
-The checker validates every trace against `trace.schema.json` and the scenario's expectations (call chain, kinds, args/results, errors, logs, loop collapsing). Add a CI job for the SDK, path-filtered to `sdks/<language>-tracer/**`, that runs its own tests and this check. See `sdks/conformance/node-tracer/run.mjs` for the reference runner.
+The checker validates every trace against `trace.schema.json` and the scenario's expectations (call chain, kinds, args/results, errors, logs, loop collapsing). Add a CI job for the SDK, path-filtered to `sdks/<language>-tracer/**`, that runs its own tests and this check. See `sdks/conformance/node-tracer/run.mjs` for the reference runner and `sdks/conformance/python-tracer/run.py` for a second language (standard library only: a WSGI callee and `urllib.request`).
+
+The Python SDK (`sdks/python-tracer`) is a worked example of porting the Node design: `contextvars` instead of `AsyncLocalStorage`, a background thread instead of timers for batching, framework middleware for ASGI/WSGI/Django, and library patches for the HTTP clients.

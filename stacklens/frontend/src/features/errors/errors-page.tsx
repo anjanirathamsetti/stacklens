@@ -10,7 +10,7 @@ import { Pagination, TableShell, filterKeyOf, usePaged } from '@/components/data
 import { PageHeader } from '@/components/layout/page-header';
 import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { SummarizeErrorsButton } from '@/features/ai/components/ai-entry-points';
-import { FilterBar } from '@/components/layout/filter-bar';
+import { FilterBar, PageActions } from '@/components/layout/filter-bar';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { KindBadge } from '@/components/data-display/trace-badges';
@@ -65,9 +65,10 @@ function ErrorsInner() {
     <>
       <PageHeader title="Errors" description="Exceptions grouped by where they were thrown">
         <SummarizeErrorsButton />
+        <PageActions onRefresh={load} />
         <ExportPdfButton report="errors" params={{ search }} />
       </PageHeader>
-      <FilterBar onRefresh={load} />
+      <FilterBar />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
         <TableShell
           scrollKey={`${pg.page}-${pg.size}`}

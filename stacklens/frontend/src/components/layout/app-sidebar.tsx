@@ -1,37 +1,17 @@
 'use client';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Suspense, useCallback, useEffect } from 'react';
-import {
-  BookOpen,
-  Bookmark,
-  ChevronDown,
-  ChevronsUpDown,
-  Keyboard,
-  LogOut,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Search,
-  Settings,
-  Shield,
-  User,
-  type LucideIcon,
-} from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { BookOpen, Bookmark, ChevronDown, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, type LucideIcon } from 'lucide-react';
 import { LogoMark, Wordmark } from '@/components/brand/logo';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Tooltip } from '@/components/ui/tooltip';
 import { openCommandPalette } from '@/components/layout/command-palette';
-import { ADMIN_ITEM, NAV_GROUPS, UNFILTERED, isActive, type NavItem } from '@/components/layout/nav-config';
+import { BOTTOM_LINKS, NAV_GROUPS, UNFILTERED, isActive, type NavItem } from '@/components/layout/nav-config';
 import { useFilters } from '@/lib/url-filters';
 import { normalizeQuery, useSavedViews } from '@/lib/saved-views';
 import { initials, useSettings } from '@/lib/settings-context';
-import { ROLE_LABELS, signOut, useCurrentUser } from '@/lib/current-user';
+import { signOut, useCurrentUser } from '@/lib/current-user';
 import { cn } from '@/lib/utils';
 
 /* ------------------------------- state hooks ------------------------------- */
@@ -128,7 +108,7 @@ function NavLink({ item, collapsed, nested }: { item: NavItem; collapsed: boolea
       className={cn(
         'relative flex items-center rounded-md text-sm transition-colors',
         collapsed ? 'mx-auto size-9 justify-center' : nested ? 'h-8 gap-2.5 px-2.5' : 'h-9 gap-2.5 px-2.5',
-        active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+        active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-hover hover:text-foreground',
       )}
     >
       {nested && !collapsed && active && <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-px bg-brand" />}
@@ -174,7 +154,7 @@ function NavSection({
         className={cn(
           'group flex h-9 w-full items-center gap-2.5 rounded-lg border px-2.5 text-sm transition-all cursor-pointer',
           'font-semibold text-foreground',
-          containsActive ? 'border-border bg-background shadow-xs' : 'border-transparent hover:bg-accent/60',
+          containsActive ? 'border-border bg-background shadow-xs' : 'border-transparent hover:bg-hover',
         )}
       >
         <Icon className={cn('size-4 shrink-0', containsActive && 'text-brand')} />
@@ -211,7 +191,7 @@ function PinnedViews({ collapsed }: { collapsed: boolean }) {
             className={cn(
               'relative flex items-center rounded-md text-sm transition-colors',
               collapsed ? 'mx-auto size-9 justify-center' : 'h-8 gap-2.5 px-2.5',
-              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-hover hover:text-foreground',
             )}
           >
             {!collapsed && active && <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-px bg-brand" />}
@@ -231,140 +211,13 @@ function PinnedViews({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-function Nav({ collapsed }: { collapsed: boolean }) {
+/** Settings, pinned above the icon row. It covers /settings and the team pages under /admin. */
+function BottomLinks({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname();
-  const { can } = useCurrentUser();
-  return (
-    <nav className={cn('flex-1 overflow-y-auto overflow-x-hidden pb-3', collapsed ? 'space-y-2 px-2' : 'space-y-1.5 px-3')}>
-      {NAV_GROUPS.map((g) => (
-        <NavSection
-          key={g.id}
-          id={g.id}
-          label={g.label}
-          icon={g.icon}
-          containsActive={g.items.some((i) => isActive(pathname, i.href))}
-          collapsed={collapsed}
-        >
-          {g.items.map((i) => (
-            <NavLink key={i.href} item={i} collapsed={collapsed} nested />
-          ))}
-        </NavSection>
-      ))}
-      <PinnedViews collapsed={collapsed} />
-      {can('admin') && (
-        <div className={cn(collapsed && 'border-t border-border/60 pt-2')}>
-          <NavLink item={ADMIN_ITEM} collapsed={collapsed} />
-        </div>
-      )}
-    </nav>
-  );
-}
-
-/**
- * Account button at the bottom of the sidebar: profile, admin and sign-out only.
- * Settings, the setup guide and shortcuts are sidebar links (see FooterLinks).
- */
-function AccountMenu({ collapsed }: { collapsed: boolean }) {
-  const { user, can } = useCurrentUser();
-  const pathname = usePathname();
-  const router = useRouter();
-  const { name, email } = user;
-  const role = ROLE_LABELS[user.role].label;
-  const sp = useSearchParams();
-  const onAccountPage = pathname === '/settings' && (sp.get('tab') ?? 'profile') === 'profile';
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        {collapsed ? (
-          <button
-            className={cn(
-              'relative mx-auto rounded-full outline-none ring-offset-2 ring-offset-shell transition hover:ring-2 hover:ring-border focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:ring-2 data-[state=open]:ring-brand/50 cursor-pointer',
-              onAccountPage && 'ring-2 ring-brand/50',
-            )}
-            aria-label="Account menu"
-          >
-            <Avatar name={name} className="size-8 text-[11px]" />
-          </button>
-        ) : (
-          <button
-            className={cn(
-              'group flex w-full items-center gap-2.5 rounded-lg border border-transparent p-1.5 text-left outline-none transition-all cursor-pointer',
-              'hover:border-border hover:bg-background hover:shadow-xs focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:border-border data-[state=open]:bg-background data-[state=open]:shadow-xs',
-              onAccountPage && 'border-border bg-background shadow-xs',
-            )}
-            aria-label="Account menu"
-          >
-            <Avatar name={name} className="size-8 rounded-lg text-[11px]" />
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-sm font-medium">{name}</span>
-              <span className="block truncate text-xs text-muted-foreground">{email || role}</span>
-            </span>
-            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
-          </button>
-        )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="right" align="end" sideOffset={collapsed ? 12 : 10} className="w-60">
-        <div className="flex items-center gap-2.5 px-2 py-2">
-          <Avatar name={name} className="size-9 rounded-lg text-xs" />
-          <div className="min-w-0 leading-tight">
-            <div className="truncate text-sm font-semibold">{name}</div>
-            <div className="truncate text-xs text-muted-foreground">{email}</div>
-          </div>
-          <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{role}</span>
-        </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => router.push('/settings?tab=profile')}>
-          <User /> Profile
-        </DropdownMenuItem>
-        {can('admin') && (
-          <DropdownMenuItem onSelect={() => router.push('/admin')}>
-            <Shield /> Admin
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => void signOut()}>
-          <LogOut /> Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-/** Links every user needs, pinned above the account button. */
-const FOOTER_LINKS: { href: string; label: string; icon: LucideIcon; tab?: string; shortcut?: string }[] = [
-  { href: '/setup', label: 'Setup guide', icon: BookOpen },
-  { href: '/settings?tab=shortcuts', label: 'Keyboard shortcuts', icon: Keyboard, tab: 'shortcuts', shortcut: '?' },
-  { href: '/settings?tab=appearance', label: 'Settings', icon: Settings, tab: 'settings', shortcut: '⌘,' },
-];
-
-function FooterLinks({ collapsed }: { collapsed: boolean }) {
-  const pathname = usePathname();
-  const sp = useSearchParams();
-  const router = useRouter();
-  const tab = sp.get('tab') ?? 'profile';
-
-  // ⌘, opens Settings (the conventional preferences shortcut)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
-        e.preventDefault();
-        router.push('/settings?tab=appearance');
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [router]);
-
-  const activeOf = (l: (typeof FOOTER_LINKS)[number]) =>
-    l.href === '/setup'
-      ? pathname.startsWith('/setup')
-      : pathname === '/settings' && (l.tab === 'shortcuts' ? tab === 'shortcuts' : tab !== 'shortcuts' && tab !== 'profile');
-
   return (
     <div className={cn('space-y-0.5 border-t border-border/70 pt-2', collapsed ? 'px-2' : 'px-3')}>
-      {FOOTER_LINKS.map((l) => {
-        const active = activeOf(l);
+      {BOTTOM_LINKS.map((l) => {
+        const active = l.match.some((p) => isActive(pathname, p));
         const link = (
           <Link
             key={l.href}
@@ -374,7 +227,7 @@ function FooterLinks({ collapsed }: { collapsed: boolean }) {
             className={cn(
               'group flex items-center rounded-md text-sm transition-colors',
               collapsed ? 'mx-auto size-9 justify-center' : 'h-8 gap-2.5 px-2.5',
-              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-hover hover:text-foreground',
             )}
           >
             <l.icon className="size-4 shrink-0" />
@@ -398,6 +251,112 @@ function FooterLinks({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+const ICON_BUTTON =
+  'grid h-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-hover hover:text-foreground cursor-pointer';
+
+/** The signed-in user's avatar; hovering or focusing it shows their name and email. */
+function UserAvatar({ collapsed }: { collapsed: boolean }) {
+  const { user } = useCurrentUser();
+  const { name, email } = user;
+  return (
+    <Tooltip
+      content={
+        <span className="block leading-snug">
+          <span className="block font-semibold">{name}</span>
+          <span className="block opacity-80">{email}</span>
+        </span>
+      }
+      side={collapsed ? 'right' : 'top'}
+    >
+      <span
+        tabIndex={0}
+        aria-label={`Signed in as ${name}, ${email}`}
+        className={cn('grid h-9 place-items-center rounded-md', collapsed ? 'size-9' : 'w-full')}
+      >
+        <Avatar name={name} className="size-7 text-[10.5px]" />
+      </span>
+    </Tooltip>
+  );
+}
+
+/** The icon row at the very bottom: you, setup guide, light/dark theme and sign out (stacked when collapsed). */
+function FooterIcons({ collapsed }: { collapsed: boolean }) {
+  const pathname = usePathname();
+  const { resolvedTheme, setTheme } = useTheme();
+  const onSetup = isActive(pathname, '/setup');
+  const size = collapsed ? 'size-9' : 'w-full';
+  const tip = (label: React.ReactNode, child: React.ReactNode) => (
+    <Tooltip content={label} side={collapsed ? 'right' : 'top'}>
+      {child}
+    </Tooltip>
+  );
+  return (
+    <div
+      className={cn(
+        'shrink-0 border-t border-border/70 py-2',
+        collapsed ? 'flex flex-col items-center gap-1' : 'mx-3 grid grid-cols-4 gap-1',
+      )}
+    >
+      <UserAvatar collapsed={collapsed} />
+      {tip(
+        'Setup guide',
+        <Link
+          href="/setup"
+          aria-label="Setup guide"
+          aria-current={onSetup ? 'page' : undefined}
+          className={cn(ICON_BUTTON, size, onSetup && 'bg-brand/12 text-foreground')}
+        >
+          <BookOpen className="size-[18px]" />
+        </Link>,
+      )}
+      {/* both theme icons are rendered and swapped by the `dark` class, so server and client markup match */}
+      {tip(
+        <span>
+          <span className="dark:hidden">Dark theme</span>
+          <span className="hidden dark:inline">Light theme</span>
+        </span>,
+        <button
+          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          aria-label="Switch between light and dark theme"
+          className={cn(ICON_BUTTON, size)}
+        >
+          <Sun className="hidden size-[18px] dark:block" />
+          <Moon className="size-[18px] dark:hidden" />
+        </button>,
+      )}
+      {tip(
+        'Sign out',
+        <button onClick={() => void signOut()} aria-label="Sign out" className={cn(ICON_BUTTON, size)}>
+          <LogOut className="size-[18px]" />
+        </button>,
+      )}
+    </div>
+  );
+}
+
+function Nav({ collapsed }: { collapsed: boolean }) {
+  const pathname = usePathname();
+  return (
+    <nav className={cn('flex-1 overflow-y-auto overflow-x-hidden pb-3', collapsed ? 'space-y-2 px-2' : 'space-y-1.5 px-3')}>
+      {NAV_GROUPS.map((g) => (
+        <NavSection
+          key={g.id}
+          id={g.id}
+          label={g.label}
+          icon={g.icon}
+          containsActive={g.items.some((i) => isActive(pathname, i.href))}
+          collapsed={collapsed}
+        >
+          {g.items.map((i) => (
+            <NavLink key={i.href} item={i} collapsed={collapsed} nested />
+          ))}
+        </NavSection>
+      ))}
+      <PinnedViews collapsed={collapsed} />
+    </nav>
+  );
+}
+
 /* --------------------------------- sidebar --------------------------------- */
 
 export function AppSidebar() {
@@ -408,6 +367,11 @@ export function AppSidebar() {
       const el = e.target as HTMLElement;
       if (e.key === '?' && !e.metaKey && !e.ctrlKey && !el?.closest('input,textarea,[contenteditable="true"]'))
         router.push('/settings?tab=shortcuts');
+      // ⌘, opens Settings (the conventional preferences shortcut)
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault();
+        router.push('/settings?tab=appearance');
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -437,7 +401,7 @@ export function AppSidebar() {
             <Tooltip content="Collapse sidebar (⌘B)" side="right">
               <button
                 onClick={() => setCollapsed(true)}
-                className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground cursor-pointer"
+                className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-hover hover:text-foreground cursor-pointer"
                 aria-label="Collapse sidebar"
               >
                 <PanelLeftClose className="size-4" />
@@ -457,15 +421,10 @@ export function AppSidebar() {
       </Suspense>
 
       <Suspense>
-        <FooterLinks collapsed={collapsed} />
+        <BottomLinks collapsed={collapsed} />
       </Suspense>
 
-      {/* account */}
-      <div className={cn('shrink-0 pb-3 pt-2', collapsed ? 'flex justify-center px-2' : 'px-3')}>
-        <Suspense>
-          <AccountMenu collapsed={collapsed} />
-        </Suspense>
-      </div>
+      <FooterIcons collapsed={collapsed} />
     </aside>
   );
 }

@@ -6,6 +6,7 @@ export type {
   HttpExchange,
   LogLevel,
   OutboundCall,
+  SdkInfo,
   SpanError,
   SpanKind,
   SpanLog,
@@ -58,6 +59,8 @@ export interface TraceSummary {
   outboundHosts?: string[];
   /** traces of called services stored on this server that link back to this trace */
   linkedChildren?: number;
+  /** language of the SDK that recorded it (`trace.sdk.language`): `node`, `python`; only in trace lists */
+  language?: string;
 }
 
 /** `GET /api/traces/:id/links` – how a trace connects to traces of other services. */

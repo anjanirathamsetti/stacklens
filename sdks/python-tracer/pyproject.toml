@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stacklens-python-tracer"
+version = "0.1.0"
+description = "Function-level call-tree tracing for Python backends: every call's arguments, return values, errors, logs and SQL, sent to StackLens."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [{ name = "StackLens contributors" }]
+keywords = ["tracing", "observability", "apm", "fastapi", "django", "flask", "sqlalchemy", "celery"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Framework :: FastAPI",
+  "Framework :: Flask",
+  "Framework :: Django",
+  "Framework :: Celery",
+  "Topic :: System :: Monitoring",
+]
+# The core is stdlib-only; framework integrations import their framework lazily.
+dependencies = []
+
+[project.optional-dependencies]
+fastapi = ["starlette>=0.27"]
+flask = ["flask>=2.2"]
+django = ["django>=3.2"]
+sqlalchemy = ["sqlalchemy>=1.4"]
+requests = ["requests>=2.25"]
+httpx = ["httpx>=0.23"]
+urllib3 = ["urllib3>=1.26"]
+celery = ["celery>=5.2"]
+test = [
+  "pytest>=7",
+  "pytest-asyncio>=0.21",
+  "fastapi>=0.100",
+  "flask>=2.2",
+  "django>=4.2",
+  "sqlalchemy[asyncio]>=2.0",
+  "aiosqlite>=0.19",
+  "requests>=2.25",
+  "httpx>=0.24",
+  "urllib3>=1.26",
+  "celery>=5.3",
+]
+
+[project.urls]
+Homepage = "https://github.com/anjanirathamsetti/stacklens"
+Source = "https://github.com/anjanirathamsetti/stacklens/tree/main/sdks/python-tracer"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+stacklens = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]

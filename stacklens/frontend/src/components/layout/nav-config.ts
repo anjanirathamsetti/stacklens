@@ -3,12 +3,13 @@ import {
   BookOpen,
   Bug,
   Flame,
+  Gauge,
   Keyboard,
   LayoutDashboard,
   Newspaper,
+  Palette,
   Radar,
   Settings,
-  Shield,
   ShieldCheck,
   Siren,
   Target,
@@ -57,18 +58,29 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-/** Shown to admins only, as a single top-level entry. */
-export const ADMIN_ITEM: NavItem = { href: '/admin', label: 'Admin', icon: Shield, keywords: 'users keys security' };
+/** Pinned above the icon row (team settings included, for admins). Setup, theme and sign out are icons below it. */
+export const BOTTOM_LINKS: (NavItem & { shortcut?: string; match: string[] })[] = [
+  {
+    href: '/settings?tab=profile',
+    label: 'Settings',
+    icon: Settings,
+    shortcut: '⌘,',
+    match: ['/settings', '/admin'],
+    keywords: 'profile preferences admin',
+  },
+];
 
 /** Pages that don't take the global filters (time range, app, user) along. */
 export const UNFILTERED = ['/setup', '/settings', '/admin'];
 
 export const ACCOUNT_ITEMS: NavItem[] = [
   { href: '/settings?tab=profile', label: 'Settings', icon: Settings, keywords: 'profile password appearance theme thresholds' },
-  { href: '/setup', label: 'Setup guide', icon: BookOpen, keywords: 'install sdk instrument' },
+  { href: '/settings?tab=appearance', label: 'Settings · Appearance', icon: Palette, keywords: 'theme dark light time format' },
+  { href: '/settings?tab=thresholds', label: 'Settings · Health thresholds', icon: Gauge, keywords: 'latency error rate' },
+  { href: '/setup', label: 'Setup guide', icon: BookOpen, keywords: 'install sdk instrument python node' },
   { href: '/settings?tab=shortcuts', label: 'Keyboard shortcuts', icon: Keyboard, keywords: 'keys hotkeys' },
 ];
 
-export const ADMIN_ITEMS: NavItem[] = ADMIN_SECTIONS.flatMap((g) => g.items).map((i) => ({ ...i, label: `Admin · ${i.label}` }));
+export const ADMIN_ITEMS: NavItem[] = ADMIN_SECTIONS.flatMap((g) => g.items).map((i) => ({ ...i, label: `Settings · ${i.label}` }));
 
 export const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + '/');

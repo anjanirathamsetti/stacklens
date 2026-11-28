@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { AlertTriangle, Bug, CheckCircle2, ExternalLink, Loader2, Play, Plug, Search, Send, ShieldCheck, Siren, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ExportPdfButton } from '@/components/print/export-pdf-button';
-import { FilterBar } from '@/components/layout/filter-bar';
+import { FilterBar, PageActions } from '@/components/layout/filter-bar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -330,9 +330,10 @@ function IncidentsInner() {
     <>
       <PageHeader title="Incidents" description="ServiceNow tickets tied to the errors StackLens detects">
         <SourceBanner source={source} />
+        <PageActions onRefresh={load} />
         <ExportPdfButton report="incidents" params={{ tab: tab === 'open' ? '' : tab, search }} />
       </PageHeader>
-      <FilterBar onRefresh={load} />
+      <FilterBar />
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
           <div className="grid shrink-0 grid-cols-2 gap-3 xl:grid-cols-4">

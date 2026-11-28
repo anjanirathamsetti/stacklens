@@ -12,7 +12,7 @@ function keyFrom(req: Request): string | undefined {
 }
 
 /**
- * Receives trace batches from `@stacklens/node-tracer` (body: `{ traces: TraceRecord[] }` or a single trace).
+ * Receives trace batches from the SDKs (`@stacklens/node-tracer`, `stacklens-python-tracer`) (body: `{ traces: TraceRecord[] }` or a single trace).
  * Instrumented apps authenticate with an API key, not a login. Keys are required once an admin
  * turns on "Require an API key" (Admin → API keys); a key that is sent is always checked.
  */

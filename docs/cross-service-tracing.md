@@ -8,11 +8,11 @@ When an instrumented API calls another API over HTTP, StackLens records the call
 | Runs StackLens but its trace isn't stored here | "Trace not received": it may still be arriving, or the callee reports to another StackLens server. Click to check again. |
 | Doesn't run StackLens (third-party APIs, uninstrumented services) | "Call graph not available — `<host>` doesn't report to StackLens", plus the full request and response |
 
-On every outgoing call, whatever the callee, the SDK records the method, the URL (secret-looking query values redacted), request headers and body, response status, headers and body, duration, and any error. Values go through the normal capture limits (`maxCaptureBytes`, `maxStringLength`, `maxArrayLength`, `maxObjectKeys`, bodies over 64 KB are cut) and `redactKeys` (`authorization`, `cookie`, `set-cookie`, `x-api-key`, `password`, …). This covers `http`/`https`, global `fetch` and libraries built on them (axios, got, node-fetch). Compressed responses are inflated for the record. Streamed bodies are copied as the app reads them. The SDK never reads a body itself, so a body the app doesn't read isn't recorded.
+On every outgoing call, whatever the callee, the SDK records the method, the URL (secret-looking query values redacted), request headers and body, response status, headers and body, duration, and any error. Values go through the normal capture limits (`maxCaptureBytes`, `maxStringLength`, `maxArrayLength`, `maxObjectKeys`, bodies over 64 KB are cut) and `redactKeys` (`authorization`, `cookie`, `set-cookie`, `x-api-key`, `password`, …). In Node.js this covers `http`/`https`, global `fetch` and libraries built on them (axios, got, node-fetch); in Python `requests`, `httpx` (sync and async), `urllib3` and `urllib.request`. Compressed responses are inflated for the record. Streamed bodies are copied as the app reads them. The SDK never reads a body itself, so a body the app doesn't read isn't recorded.
 
 In the traces list, a request that made outgoing calls shows a globe badge with the number of calls and how many of them have a linked trace (`↗ 3 · 2 traced`). Use the **Calls other services** filter to list only those requests.
 
-How the link works: the caller sends a W3C `traceparent` header (plus `tracestate: stacklens=<app>`). The callee records it as its trace's `parent` and answers with `x-stacklens-trace-id`. The server joins the two when you open the trace, so they can arrive in either order. SDK options: `captureOutbound`, `propagate`, `propagateTo` (see [the SDK README](../sdks/node-tracer/README.md#calls-to-other-services)). Wire format: [contract.md](contract.md#cross-service-calls).
+How the link works: the caller sends a W3C `traceparent` header (plus `tracestate: stacklens=<app>`). The callee records it as its trace's `parent` and answers with `x-stacklens-trace-id`. The server joins the two when you open the trace, so they can arrive in either order. SDK options: `captureOutbound`, `propagate`, `propagateTo` (see the [Node](../sdks/node-tracer/README.md#calls-to-other-services) and [Python](../sdks/python-tracer/README.md#calls-to-other-services) READMEs; Python spells them `capture_outbound`, `propagate`, `propagate_to`). Celery tasks are linked the same way: the Python SDK sends `traceparent` in the task's message headers, and the worker's trace records it as its `parent`. Wire format: [contract.md](contract.md#cross-service-calls).
 
 ## Try it
 
@@ -93,3 +93,19 @@ For continuous traffic, run `EXPRESS_URL=http://localhost:3021 NEST_URL=http://l
 5. Stop shipping-service and repeat the checkout: the quote call becomes a failed outgoing call with the connection error (`ECONNREFUSED`), and orders-api's 502 response is in the trace.
 
 To reset, stop the dashboard and delete `~/.stacklens/xservice-data`.
+
+## Node.js ↔ Python
+
+The Python examples ([examples/python](../examples/python/README.md)) link to and from the Node ones, so one request crosses both languages:
+
+```
+orders-api (Node, Express)  POST /api/quotes/:userId
+  └─ fetch → catalog-api (Python, FastAPI)  POST /quotes
+       ├─ httpx → inventory-api (Python, Flask)       linked call tree
+       ├─ httpx → billing-api (Node, NestJS)          linked call tree
+       ├─ httpx → shipping-service (Node, no SDK)     "no call graph"
+       ├─ httpx → providers (fraud, FX; no SDK)       "no call graph"
+       └─ Celery → notifications-worker               "Called by catalog-api" on the task's trace
+```
+
+Run them with `npm run sample:python` (see the examples README); expand the `catalog-api` chip on an `orders-api` quote to see the Python call tree inline.

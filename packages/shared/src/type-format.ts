@@ -13,7 +13,7 @@ export interface TypeToken {
   text: string;
 }
 
-const KEYWORDS = new Set(['async', 'typeof', 'keyof', 'readonly', 'new', 'extends', 'infer', 'is']);
+const KEYWORDS = new Set(['async', 'typeof', 'keyof', 'readonly', 'new', 'extends', 'infer', 'is', 'def']);
 const PRIMITIVES = new Set([
   'string',
   'number',
@@ -29,6 +29,22 @@ const PRIMITIVES = new Set([
   'undefined',
   'true',
   'false',
+  // Python (the Python SDK infers types with Python names: `list[int]`, `dict[str, Any]`, `Order { id: int }`)
+  'str',
+  'int',
+  'float',
+  'bool',
+  'bytes',
+  'bytearray',
+  'complex',
+  'None',
+  'Any',
+  'NoReturn',
+  'dict',
+  'list',
+  'tuple',
+  'set',
+  'frozenset',
 ]);
 
 export function tokenizeType(src: string): TypeToken[] {
@@ -69,8 +85,8 @@ export function tokenizeType(src: string): TypeToken[] {
       i = j;
       continue;
     }
-    if (src.startsWith('=>', i) || src.startsWith('...', i) || src.startsWith('?:', i)) {
-      const t = src.startsWith('=>', i) ? '=>' : src.startsWith('...', i) ? '...' : '?:';
+    if (src.startsWith('=>', i) || src.startsWith('->', i) || src.startsWith('...', i) || src.startsWith('?:', i)) {
+      const t = src.startsWith('=>', i) ? '=>' : src.startsWith('->', i) ? '->' : src.startsWith('...', i) ? '...' : '?:';
       out.push({ type: t === '...' ? 'punct' : 'op', text: t });
       i += t.length;
       continue;
@@ -203,12 +219,16 @@ export interface SignatureParts {
   params: { name: string; type?: string }[];
   returnType: string;
   async?: boolean;
+  /** `python` renders `async def name(a: A) -> R`; otherwise TypeScript style `async name(a: A): R`. */
+  language?: 'node' | 'python';
 }
 
-/** `async name(a: A, b: B): R`, with parameters on their own lines when it doesn't fit. */
+/** `async name(a: A, b: B): R` (or `async def name(a: A, b: B) -> R` for Python), with parameters on their own lines when it doesn't fit. */
 export function formatSignatureTokens(sig: SignatureParts, width = 64, unit = '  '): TypeToken[] {
+  const py = sig.language === 'python';
   const head: TypeToken[] = [];
   if (sig.async) head.push({ type: 'keyword', text: 'async' }, { type: 'ws', text: ' ' });
+  if (py) head.push({ type: 'keyword', text: 'def' }, { type: 'ws', text: ' ' });
   head.push({ type: 'fn', text: sig.name }, { type: 'punct', text: '(' });
   const param = (p: SignatureParts['params'][number], indent: number): TypeToken[] => [
     { type: 'param', text: p.name },
@@ -218,9 +238,11 @@ export function formatSignatureTokens(sig: SignatureParts, width = 64, unit = ' 
   ];
   const ret = (offset: number): TypeToken[] => [
     { type: 'punct', text: ')' },
-    { type: 'punct', text: ':' },
+    ...(py
+      ? [{ type: 'ws', text: ' ' } as TypeToken, { type: 'op', text: '->' } as TypeToken]
+      : [{ type: 'punct', text: ':' } as TypeToken]),
     { type: 'ws', text: ' ' },
-    ...formatTypeTokens(sig.returnType, width, 0, unit, offset + 3),
+    ...formatTypeTokens(sig.returnType, width, 0, unit, offset + (py ? 5 : 3)),
   ];
   // parameters on the same line as the name when they fit; the return type then breaks if it must
   const inlineHead: TypeToken[] = [...head];

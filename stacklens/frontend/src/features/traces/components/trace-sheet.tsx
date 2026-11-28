@@ -10,6 +10,8 @@ import { TraceShareMenu } from '@/features/traces/components/trace-share-menu';
 import { AppBadge, MethodBadge, OutcomeBadge, StatusCodeBadge } from '@/components/data-display/trace-badges';
 import { KIND_SHORT } from '@/features/traces/components/call-tree';
 import { buildTree, errorOrigins } from '@stacklens/shared/span-tree';
+import { errorText } from '@stacklens/shared/language';
+import { StackView } from '@/components/data-display/stack-view';
 import { cn, formatDateTime, formatMs, KIND_META, SEVERITY, severityOf } from '@/lib/utils';
 import type { TraceRecord, TraceSummary } from '@stacklens/shared/api-types';
 
@@ -301,19 +303,13 @@ export function TraceSheet({
                           <span className="font-mono text-[13px] text-foreground">{derived.firstError.name}</span>
                         </span>
                       }
-                      right={
-                        <CopyButton
-                          text={`${derived.firstError.error.name}: ${derived.firstError.error.message}\n${derived.firstError.error.stack ?? ''}`}
-                        />
-                      }
+                      right={<CopyButton text={errorText(derived.firstError.error)} />}
                     >
                       <div className="font-mono text-[13px]">{derived.firstError.error.message}</div>
                       {derived.firstError.error.stack && (
                         <details className="mt-2">
                           <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">Stack trace</summary>
-                          <pre className="mt-2 max-h-56 overflow-auto rounded-md bg-muted/50 p-2.5 font-mono text-[11px] leading-relaxed text-muted-foreground">
-                            {derived.firstError.error.stack.split('\n').slice(1).join('\n').trim()}
-                          </pre>
+                          <StackView error={derived.firstError.error} className="mt-2 max-h-56 text-[11px]" />
                         </details>
                       )}
                     </Box>

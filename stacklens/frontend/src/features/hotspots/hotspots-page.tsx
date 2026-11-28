@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Search, ExternalLink, Flame } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ExportPdfButton } from '@/components/print/export-pdf-button';
-import { FilterBar } from '@/components/layout/filter-bar';
+import { FilterBar, PageActions } from '@/components/layout/filter-bar';
 import { Pagination, TableShell, filterKeyOf, usePaged } from '@/components/data-display/pagination';
 import { useLive } from '@/components/layout/providers';
 import { useFilters, useLiveRefresh } from '@/lib/url-filters';
@@ -15,6 +15,9 @@ import { KindBadge } from '@/components/data-display/trace-badges';
 import { InlineType, SignatureView } from '@/components/data-display/code-view';
 import { cn, formatMs } from '@/lib/utils';
 import type { Hotspot, SpanKind } from '@stacklens/shared/api-types';
+import { languageOfTypes, returnTypeOf } from '@stacklens/shared/language';
+
+const hotspotLanguage = (h: { resultType?: string; argTypes?: string[] }) => languageOfTypes([h.resultType, ...(h.argTypes ?? [])]);
 
 type SortKey = 'totalSelf' | 'calls' | 'avg' | 'p95' | 'errors';
 
@@ -70,9 +73,10 @@ function InsightsInner() {
   return (
     <>
       <PageHeader title="Hotspots" description="Every instrumented function aggregated across the traces in range">
+        <PageActions onRefresh={load} />
         <ExportPdfButton report="hotspots" params={exportParams} />
       </PageHeader>
-      <FilterBar onRefresh={load} />
+      <FilterBar />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
         <TableShell
           scrollKey={`${pg.page}-${pg.size}`}
@@ -168,7 +172,8 @@ function InsightsInner() {
                               async: h.async,
                               name: h.name.split('.').pop() ?? h.name,
                               params: h.params.map((p, i) => ({ name: p, type: h.argTypes?.[i] ?? 'unknown' })),
-                              returnType: h.async ? `Promise<${h.resultType ?? 'void'}>` : (h.resultType ?? 'void'),
+                              returnType: returnTypeOf({ status: 'ok', ...h }, hotspotLanguage(h)),
+                              language: hotspotLanguage(h),
                             }}
                           />
                         }
@@ -182,7 +187,7 @@ function InsightsInner() {
                             </span>
                           ))}
                           <span className="text-muted-foreground">) → </span>
-                          <InlineType type={h.async ? `Promise<${h.resultType ?? 'void'}>` : (h.resultType ?? 'void')} />
+                          <InlineType type={returnTypeOf({ status: 'ok', ...h }, hotspotLanguage(h))} />
                         </code>
                       </Tooltip>
                     </td>

@@ -45,7 +45,12 @@
     "docker:up": "docker compose -f deploy/docker-compose.yml up --build",
     "test:backend": "npm run test -w @stacklens/backend",
     "test:sdk": "npm run test -w @stacklens/node-tracer",
-    "conformance:node": "npm run build -w @stacklens/node-tracer && node sdks/conformance/node-tracer/run.mjs | node sdks/conformance/check.mjs -"
+    "conformance:node": "npm run build -w @stacklens/node-tracer && node sdks/conformance/node-tracer/run.mjs | node sdks/conformance/check.mjs -",
+    "conformance:python": "python3 sdks/conformance/python-tracer/run.py | node sdks/conformance/check.mjs -",
+    "test:python": "cd sdks/python-tracer && ${PYTHON:-python3} -m pytest -q",
+    "example:python": "${PYTHON:-examples/python/.venv/bin/python} examples/python/run_all.py",
+    "traffic:python": "python3 examples/python/traffic.py",
+    "sample:python": "node scripts/python-sample-data.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

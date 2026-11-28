@@ -1,18 +1,18 @@
 import { redirect } from 'next/navigation';
-import { AdminMobileNav, AdminNav } from '@/features/admin/admin-nav';
+import { SettingsMobileNav, SettingsNav } from '@/features/settings/settings-nav';
 import { getCurrentUser, hasRole } from '@/server/session';
 
 export const dynamic = 'force-dynamic';
 
-/** Admin-only section with its own menu. The API routes behind it check the role again. */
+/** Team settings (admins only), shown with the shared Settings menu. The API routes behind it check the role again. */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user || !hasRole(user, 'admin')) redirect('/overview');
   return (
     <div className="flex min-h-0 flex-1">
-      <AdminNav />
+      <SettingsNav />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <AdminMobileNav />
+        <SettingsMobileNav />
         {children}
       </div>
     </div>

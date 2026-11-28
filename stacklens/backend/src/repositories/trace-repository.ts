@@ -79,6 +79,8 @@ interface SummaryRow {
   outbound_count: number;
   outbound_hosts: string[];
   linked_children: number;
+  /** only selected by pageTraces */
+  sdk_language?: string | null;
 }
 
 const ms = (d: Date | string | number) => (d instanceof Date ? d.getTime() : new Date(d).getTime());
@@ -115,6 +117,7 @@ function toSummary(r: SummaryRow): TraceSummary {
     outboundCount: r.outbound_count || undefined,
     outboundHosts: r.outbound_count ? r.outbound_hosts : undefined,
     linkedChildren: r.outbound_count ? Number(r.linked_children) : undefined,
+    language: r.sdk_language ?? undefined,
   };
 }
 
@@ -279,7 +282,8 @@ export async function pageTraces(q: TraceQuery = {}): Promise<{ traces: TraceSum
   // page and count separately: a `count(*) over ()` window would materialize every matching row
   const [rows, total] = await Promise.all([
     db.query<SummaryRow>(
-      `select ${SUMMARY_COLUMNS} from traces t ${where.sql} order by ${order} limit ${limit} offset ${offset}`,
+      // the SDK language is read from the stored call tree (one key per listed row; null once pruned)
+      `select ${SUMMARY_COLUMNS}, t.payload->'sdk'->>'language' as sdk_language from traces t ${where.sql} order by ${order} limit ${limit} offset ${offset}`,
       where.params,
     ),
     countTraces(db, q, where),

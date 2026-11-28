@@ -13,17 +13,20 @@ Every StackLens SDK, in any language, sends the same JSON to `POST /api/ingest`.
 
 ```
 IngestRequest { traces: TraceRecord[] }          (a bare TraceRecord is also accepted)
-TraceRecord   { id, service, name, kind: http|job, startTime (epoch ms), duration, status, spans[], http?, parent?, … }
+TraceRecord   { id, service, name, kind: http|job, startTime (epoch ms), duration, status, spans[], http?, parent?, sdk?, … }
 SpanRecord    { id, parentId (null for root), name "Class.method", method, kind, start (ms since trace start),
                 duration, status, async, params[], args?, result?, error?, logs?, collapsed?, outbound?, … }
 OutboundCall  { method, url, host, statusCode?, propagated?, childTraceId? }
 TraceParent   { traceId, spanId, service? }
+SdkInfo       { name, language, version?, runtime? }
 ```
 
 - `spans` is a flat list; the root span comes first. Build the tree with `parentId`.
 - Times are milliseconds (fractional allowed). `start` is relative to the trace start, `startTime` is epoch.
 - `args` and `result` are *serialized* values: plain JSON with depth, length and key limits applied and secrets redacted by the SDK.
 - Repeated sibling calls (loops) are folded into one span with `collapsed: { count, totalDuration, minDuration, maxDuration, errors }`.
+- `sdk` names the SDK and the language that recorded the trace (`{ "name": "stacklens-python-tracer", "version": "0.1.0", "language": "python", "runtime": "CPython 3.12.4" }`). The UI uses it to show the language and its idioms (Python signatures, `None`, tracebacks). It is optional; traces without it are shown Node-style.
+- Type strings (`argTypes`, `resultType`) use the language's own names: TypeScript-like for Node (`{ id: number }`, `string[]`), Python names for Python (`{ id: int }`, `list[str]`, `Order { total: Decimal }`). Error `stack`s are in the language's native format (a Python `Traceback (most recent call last): …`).
 
 ## Cross-service calls
 

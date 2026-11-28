@@ -89,6 +89,18 @@ export interface OutboundCall {
   childTraceId?: string;
 }
 
+/** The SDK that recorded a trace. Lets the UI show the language and use its idioms (type names, signatures). */
+export interface SdkInfo {
+  /** Package name, e.g. `@stacklens/node-tracer` or `stacklens-python-tracer`. */
+  name: string;
+  /** SDK version, e.g. `0.1.0`. */
+  version?: string;
+  /** Language of the instrumented app, lower-case: `node`, `python`, … */
+  language: string;
+  /** Runtime and its version, e.g. `Node.js 22.12.0` or `CPython 3.12.4`. */
+  runtime?: string;
+}
+
 /** The call that caused this trace in another service (from an incoming W3C `traceparent` header). */
 export interface TraceParent {
   /** Trace id in the calling service. */
@@ -148,6 +160,8 @@ export interface TraceRecord {
   valuesTruncated?: boolean;
   /** Set when another instrumented service made the request that started this trace. */
   parent?: TraceParent;
+  /** Which SDK (and language) recorded the trace. Optional; older SDKs don't send it. */
+  sdk?: SdkInfo;
 }
 
 /** Body of `POST /api/ingest`. A single `TraceRecord` is also accepted. */

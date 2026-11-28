@@ -9,7 +9,7 @@ import { MAX_PRINT_ROWS, UI_ONLY_KEYS } from '@/components/print/print-query';
  * plus `params` for state that only lives in the page (search box, tab, sort). The print tab opens
  * the browser's print dialog, where "Save as PDF" writes the file.
  *
- * `variant="table"` is the small icon button in a table's toolbar: it exports the whole filtered
+ * Both variants are icon buttons with a tooltip. `variant="table"` is the one in a table's toolbar: it exports the whole filtered
  * table (up to MAX_PRINT_ROWS rows) instead of the page as shown.
  */
 export function ExportPdfButton({
@@ -49,9 +49,9 @@ export function ExportPdfButton({
       </Tooltip>
     );
   return (
-    <Tooltip content="Open a print layout of this page – save it as PDF from the print dialog">
-      <Button variant="outline" size="sm" onClick={open} disabled={disabled}>
-        <FileDown /> Export PDF
+    <Tooltip content="Export PDF: opens a print layout of this page to save from the print dialog">
+      <Button variant="outline" size="icon" onClick={open} disabled={disabled} aria-label="Export PDF">
+        <FileDown />
       </Button>
     </Tooltip>
   );

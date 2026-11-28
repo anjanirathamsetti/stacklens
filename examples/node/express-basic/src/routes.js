@@ -3,6 +3,7 @@ const orderController = require('./controllers/order.controller');
 const userController = require('./controllers/user.controller');
 const labController = require('./lab/lab.controller');
 const checkoutController = require('./controllers/checkout.controller');
+const catalogController = require('./controllers/catalog.controller');
 
 const r = Router();
 // Go through the exports object so the instrumented versions are used
@@ -15,6 +16,10 @@ r.get('/orders/:id/fail', (req, res, next) => orderController.fail(req, res).cat
 r.post('/checkout/:userId', (req, res, next) => checkoutController.checkout(req, res).catch(next));
 // calls shipping-service, which does not run StackLens (streamed response body)
 r.get('/shipping/labels/:orderId', (req, res, next) => checkoutController.label(req, res).catch(next));
+
+// cross-language: calls catalog-api, the Python example (examples/python/fastapi-catalog)
+r.get('/catalog/:sku', (req, res, next) => catalogController.product(req, res).catch(next));
+r.post('/quotes/:userId', (req, res, next) => catalogController.quote(req, res).catch(next));
 
 // Heavy endpoints for trying StackLens on big call trees (see src/lab)
 r.get('/lab/catalog-sync', (req, res, next) => labController.catalogSync(req, res).catch(next));

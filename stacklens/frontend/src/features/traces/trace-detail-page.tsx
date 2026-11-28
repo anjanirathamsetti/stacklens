@@ -39,6 +39,8 @@ import { SpanDetails, type InspectorTab } from '@/features/traces/components/spa
 import { ResizableAside } from '@/components/layout/resizable-aside';
 import { useFilters } from '@/lib/url-filters';
 import { ancestorsOf, buildTree, callCount, errorOrigins, type SpanNode } from '@stacklens/shared/span-tree';
+import { languageLabel, languageOf } from '@stacklens/shared/language';
+import { LanguageIcon } from '@/components/brand/language-icon';
 import { cn, formatDateTime, formatMs, KIND_META, SEVERITY, severityOf } from '@/lib/utils';
 import { useSettings } from '@/lib/settings-context';
 import { OutcomeBadge } from '@/components/data-display/trace-badges';
@@ -65,6 +67,18 @@ function KV({ title, value }: { title: string; value: unknown }) {
       {empty ? <div className="text-xs text-muted-foreground">—</div> : <JsonView value={value} />}
     </div>
   );
+}
+
+const NodeIcon = ({ className }: { className?: string }) => <LanguageIcon language="node" className={cn(className, 'text-[#5FA04E]')} />;
+const PythonIcon = ({ className }: { className?: string }) => (
+  <LanguageIcon language="python" className={cn(className, 'text-[#3776AB] dark:text-[#5a9fd4]')} />
+);
+
+/** `stacklens-python-tracer 0.1.0 · CPython 3.12.4` */
+function sdkTitle(trace: TraceRecord): string | undefined {
+  const sdk = trace.sdk;
+  if (!sdk) return undefined;
+  return [sdk.version ? `${sdk.name} ${sdk.version}` : sdk.name, sdk.runtime].filter(Boolean).join(' · ');
 }
 
 function Chip({ icon: Icon, children, title }: { icon: any; children: React.ReactNode; title?: string }) {
@@ -377,6 +391,11 @@ function TraceDetail({ id }: { id: string }) {
                   ) : null}
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <Chip icon={Boxes}>{app}</Chip>
+                    {(trace.sdk || languageOf(trace) === 'python') && (
+                      <Chip icon={languageOf(trace) === 'python' ? PythonIcon : NodeIcon} title={sdkTitle(trace)}>
+                        {languageLabel(trace)}
+                      </Chip>
+                    )}
                     <Chip icon={FolderKanban}>{trace.project ?? 'default'}</Chip>
                     {trace.userId && (
                       <Link href={`/traces?user=${encodeURIComponent(trace.userId)}`} title="All traces from this user">
