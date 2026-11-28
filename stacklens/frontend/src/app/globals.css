@@ -232,6 +232,14 @@
   }
 }
 
+/* PDF frame: the StackLens bar (thead) repeats on every page; the single body cell flows across pages */
+.print-frame > thead {
+  display: table-header-group;
+}
+.print-frame > tbody > tr {
+  break-inside: auto;
+}
+
 /* repeat the header row on every page and never cut a row in half */
 .print-table thead {
   display: table-header-group;

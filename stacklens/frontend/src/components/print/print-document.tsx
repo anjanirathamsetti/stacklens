@@ -110,52 +110,74 @@ export function PrintDocument({
           landscape ? 'w-[297mm]' : 'w-[210mm]',
         )}
       >
-        <header className="mb-5 break-inside-avoid">
-          <div className="flex items-center justify-between gap-4 border-b-2 border-brand pb-2.5">
-            <span className="inline-flex items-center gap-2 text-foreground">
-              <LogoMark className="size-6" />
-              <Wordmark className="text-[17px]" />
-            </span>
-            <div className="text-right text-[10px] leading-tight text-muted-foreground">
-              <div className="font-medium uppercase tracking-wider">Report</div>
-              <div className="font-mono">{generatedAt ? `Generated ${printDateTime(generatedAt, true)}` : 'Loading…'}</div>
-            </div>
-          </div>
-          <h1 className="mt-4 text-xl font-semibold tracking-tight">{title}</h1>
-          {subtitle && <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>}
-          {filters.length > 0 && (
-            <dl className="mt-3 flex flex-wrap gap-1.5 text-[10.5px]">
-              {filters.map((f) => (
-                <div key={f.label} className="inline-flex max-w-full items-baseline gap-1.5 rounded-md border bg-muted/50 px-2 py-0.5">
-                  <dt className="text-muted-foreground">{f.label}</dt>
-                  <dd className="min-w-0 break-words font-mono font-medium">{f.value}</dd>
+        {/*
+          The report sits in a one-cell table whose <thead> is the StackLens bar: browsers repeat a
+          table's header group at the top of every printed page, so the brand bar shows on each
+          page while the title, filters and notes below appear once.
+        */}
+        <table className="print-frame w-full border-collapse">
+          <thead>
+            <tr>
+              <td className="p-0 pb-4">
+                <div className="flex items-center justify-between gap-4 border-b-2 border-brand pb-2.5">
+                  <span className="inline-flex items-center gap-2 text-foreground">
+                    <LogoMark className="size-6" />
+                    <Wordmark className="text-[17px]" />
+                  </span>
+                  <div className="text-right text-[10px] leading-tight text-muted-foreground">
+                    <div className="font-medium uppercase tracking-wider">{title}</div>
+                    <div className="font-mono">{generatedAt ? `Generated ${printDateTime(generatedAt, true)}` : 'Loading…'}</div>
+                  </div>
                 </div>
-              ))}
-            </dl>
-          )}
-          {notes.length > 0 && (
-            <ul className="mt-2 space-y-0.5 text-[10.5px] text-muted-foreground">
-              {notes.map((n) => (
-                <li key={n} className="flex items-start gap-1.5">
-                  <Info className="mt-px size-3 shrink-0" />
-                  {n}
-                </li>
-              ))}
-            </ul>
-          )}
-        </header>
+              </td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="p-0 align-top">
+                <header className="mb-5 break-inside-avoid">
+                  <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+                  {subtitle && <div className="mt-0.5 text-xs text-muted-foreground">{subtitle}</div>}
+                  {filters.length > 0 && (
+                    <dl className="mt-3 flex flex-wrap gap-1.5 text-[10.5px]">
+                      {filters.map((f) => (
+                        <div
+                          key={f.label}
+                          className="inline-flex max-w-full items-baseline gap-1.5 rounded-md border bg-muted/50 px-2 py-0.5"
+                        >
+                          <dt className="text-muted-foreground">{f.label}</dt>
+                          <dd className="min-w-0 break-words font-mono font-medium">{f.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                  {notes.length > 0 && (
+                    <ul className="mt-2 space-y-0.5 text-[10.5px] text-muted-foreground">
+                      {notes.map((n) => (
+                        <li key={n} className="flex items-start gap-1.5">
+                          <Info className="mt-px size-3 shrink-0" />
+                          {n}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </header>
 
-        {error ? (
-          <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            <AlertTriangle className="size-4" /> Couldn’t load this report: {error}
-          </div>
-        ) : !ready ? (
-          <div className="grid h-48 place-items-center text-muted-foreground">
-            <Loader2 className="size-5 animate-spin" />
-          </div>
-        ) : (
-          <div className="space-y-6">{children}</div>
-        )}
+                {error ? (
+                  <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                    <AlertTriangle className="size-4" /> Couldn’t load this report: {error}
+                  </div>
+                ) : !ready ? (
+                  <div className="grid h-48 place-items-center text-muted-foreground">
+                    <Loader2 className="size-5 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">{children}</div>
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </article>
     </div>
   );
