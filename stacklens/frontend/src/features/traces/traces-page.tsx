@@ -5,7 +5,7 @@ import { AlertTriangle, Search, Trash2, Inbox, X, Activity, Timer, Gauge, ArrowD
 import { PageHeader } from '@/components/layout/page-header';
 import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { AskAiButton } from '@/features/ai/components/ai-entry-points';
-import { FilterBar } from '@/components/layout/filter-bar';
+import { FilterBar, PageActions } from '@/components/layout/filter-bar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -217,9 +217,10 @@ function TracesInner() {
             </Button>
           </Tooltip>
         )}
+        <PageActions onRefresh={load} />
         <ExportPdfButton report="traces" params={{ at: anchor ?? undefined }} />
       </PageHeader>
-      <FilterBar onRefresh={load} />
+      <FilterBar />
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
         <Card className="shrink-0 px-2 pb-2 pt-3">

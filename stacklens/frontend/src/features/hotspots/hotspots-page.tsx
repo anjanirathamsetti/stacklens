@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Search, ExternalLink, Flame } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ExportPdfButton } from '@/components/print/export-pdf-button';
-import { FilterBar } from '@/components/layout/filter-bar';
+import { FilterBar, PageActions } from '@/components/layout/filter-bar';
 import { Pagination, TableShell, filterKeyOf, usePaged } from '@/components/data-display/pagination';
 import { useLive } from '@/components/layout/providers';
 import { useFilters, useLiveRefresh } from '@/lib/url-filters';
@@ -70,9 +70,10 @@ function InsightsInner() {
   return (
     <>
       <PageHeader title="Hotspots" description="Every instrumented function aggregated across the traces in range">
+        <PageActions onRefresh={load} />
         <ExportPdfButton report="hotspots" params={exportParams} />
       </PageHeader>
-      <FilterBar onRefresh={load} />
+      <FilterBar />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
         <TableShell
           scrollKey={`${pg.page}-${pg.size}`}

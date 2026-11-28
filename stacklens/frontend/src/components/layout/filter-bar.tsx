@@ -63,10 +63,9 @@ function LabeledSelect({
 }
 
 /** Global filters shared by all pages: project, application, environment, user, time range, live. */
-export function FilterBar({ onRefresh, children }: { onRefresh?: () => void; children?: React.ReactNode }) {
+export function FilterBar({ children }: { children?: React.ReactNode }) {
   const { range, values, set } = useFilters();
   const facets = useFacets();
-  const { live, setLive } = useLive();
   const [user, setUser] = useState(values.user);
 
   useEffect(() => setUser(values.user), [values.user]);
@@ -162,28 +161,40 @@ export function FilterBar({ onRefresh, children }: { onRefresh?: () => void; chi
           </>
         )}
         <TimeRangePicker range={range} onChange={set} />
-        <Tooltip content={live ? 'Live: auto-refreshing as traces arrive. Click to pause.' : 'Paused. Click to resume live updates.'}>
-          <Button variant="outline" onClick={() => setLive(!live)} className={cn(live && 'border-success/40')}>
-            {live ? (
-              <>
-                <span className="size-1.5 rounded-full bg-success animate-pulse-dot" /> Live <Pause className="text-muted-foreground" />
-              </>
-            ) : (
-              <>
-                <Play /> Paused
-              </>
-            )}
-          </Button>
-        </Tooltip>
-        <ShareMenu />
-        {onRefresh && (
-          <Tooltip content="Refresh now">
-            <Button variant="outline" size="icon" onClick={onRefresh}>
-              <RefreshCw />
-            </Button>
-          </Tooltip>
-        )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Page-level actions shown in the page header next to Export: live updates on/off, copy a link to
+ * the current view, and refresh now.
+ */
+export function PageActions({ onRefresh }: { onRefresh?: () => void }) {
+  const { live, setLive } = useLive();
+  return (
+    <>
+      <Tooltip content={live ? 'Live: auto-refreshing as traces arrive. Click to pause.' : 'Paused. Click to resume live updates.'}>
+        <Button variant="outline" size="sm" onClick={() => setLive(!live)} className={cn(live && 'border-success/40')}>
+          {live ? (
+            <>
+              <span className="size-1.5 rounded-full bg-success animate-pulse-dot" /> Live <Pause className="text-muted-foreground" />
+            </>
+          ) : (
+            <>
+              <Play /> Paused
+            </>
+          )}
+        </Button>
+      </Tooltip>
+      <ShareMenu />
+      {onRefresh && (
+        <Tooltip content="Refresh now">
+          <Button variant="outline" size="icon" onClick={onRefresh} aria-label="Refresh now">
+            <RefreshCw />
+          </Button>
+        </Tooltip>
+      )}
+    </>
   );
 }

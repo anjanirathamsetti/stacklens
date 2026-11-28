@@ -5,7 +5,7 @@ import { Activity, AlertTriangle, Gauge, Timer, Users, GitBranch, ChevronRight }
 import { KpiCard } from '@/features/overview/components/kpi-card';
 import { PageHeader } from '@/components/layout/page-header';
 import { ExportPdfButton } from '@/components/print/export-pdf-button';
-import { FilterBar } from '@/components/layout/filter-bar';
+import { FilterBar, PageActions } from '@/components/layout/filter-bar';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -88,9 +88,10 @@ function OverviewInner() {
   return (
     <>
       <PageHeader title="Overview" description="Live health of every instrumented application">
+        <PageActions onRefresh={load} />
         <ExportPdfButton report="overview" />
       </PageHeader>
-      <FilterBar onRefresh={load} />
+      <FilterBar />
       <div className="flex-1 overflow-y-auto">
         <div className="space-y-4 p-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
