@@ -8,6 +8,7 @@ export type {
   IngestRequest,
   LogLevel,
   OutboundCall,
+  SdkInfo,
   SpanError,
   SpanKind,
   SpanLog,

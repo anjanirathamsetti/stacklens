@@ -10,7 +10,7 @@ const brand = Outfit({ subsets: ['latin'], weight: '500', variable: '--font-outf
 
 export const metadata: Metadata = {
   title: { default: 'StackLens', template: '%s · StackLens' },
-  description: 'Call-tree tracing for Node.js backends – NestJS, Express and TypeORM',
+  description: 'Call-tree tracing for Node.js and Python backends – NestJS, Express, FastAPI, Django, Flask and more',
 };
 
 /** Shell shared by every page. Signed-in pages add the sidebar in `(app)/layout.tsx`; sign-in pages live in `(auth)`. */

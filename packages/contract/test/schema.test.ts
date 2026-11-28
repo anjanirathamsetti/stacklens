@@ -4,6 +4,7 @@ import type {
   HttpExchange,
   IngestRequest,
   OutboundCall,
+  SdkInfo,
   SpanError,
   SpanLog,
   SpanRecord,
@@ -30,6 +31,12 @@ const parent = {
   spanId: '00f067aa0ba902b7',
   service: 'orders-api',
 } satisfies Required<TraceParent>;
+const sdk = {
+  name: 'stacklens-python-tracer',
+  version: '0.1.0',
+  language: 'python',
+  runtime: 'CPython 3.12.4',
+} satisfies Required<SdkInfo>;
 const span = {
   id: 's2',
   parentId: 's1',
@@ -93,6 +100,7 @@ const trace = {
   droppedSpans: 0,
   valuesTruncated: false,
   parent,
+  sdk,
 } satisfies Required<TraceRecord>;
 
 const keysOf = (def: string) => Object.keys(schema.$defs[def].properties ?? {}).sort();
@@ -104,6 +112,7 @@ describe('trace.schema.json', () => {
     ['CollapsedCalls', collapsed],
     ['OutboundCall', outbound],
     ['TraceParent', parent],
+    ['SdkInfo', sdk],
     ['SpanRecord', span],
     ['HttpExchange', http],
     ['TraceRecord', trace],

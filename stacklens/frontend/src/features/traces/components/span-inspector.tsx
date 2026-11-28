@@ -26,6 +26,9 @@ import { sqlSummary } from '@stacklens/shared/sql-format';
 import { cn, errorStatus, formatMs, KIND_META, SEVERITY, severityOf } from '@/lib/utils';
 import { busyTime, type SpanNode } from '@stacklens/shared/span-tree';
 import type { TraceRecord } from '@stacklens/shared/api-types';
+import { errorText, languageOf, resultTypeOf, returnTypeOf, type Language } from '@stacklens/shared/language';
+import { StackView } from '@/components/data-display/stack-view';
+import { LanguageProvider, useLanguage } from '@/lib/language-context';
 
 export type InspectorTab = 'input' | 'output' | 'logs' | 'details';
 
@@ -206,14 +209,14 @@ function Empty({ children }: { children: React.ReactNode }) {
 }
 
 /** The call's inferred signature, as parts for SignatureView. */
-export function signatureParts(span: SpanNode): SignatureParts {
+export function signatureParts(span: SpanNode, language: Language = 'node'): SignatureParts {
   const params = span.params.length ? span.params : (span.args ?? []).map((_, i) => `arg${i}`);
-  const ret = span.status === 'error' ? 'never' : (span.resultType ?? 'void');
   return {
     async: span.async,
     name: span.method,
-    params: params.map((p, i) => ({ name: p, type: span.argTypes?.[i] ?? 'unknown' })),
-    returnType: span.async ? `Promise<${ret}>` : ret,
+    params: params.map((p, i) => ({ name: p, type: span.argTypes?.[i] ?? (language === 'python' ? 'Any' : 'unknown') })),
+    returnType: returnTypeOf(span, language),
+    language,
   };
 }
 
@@ -234,16 +237,12 @@ function errorCard(span: SpanNode): CardSpec | undefined {
         {status && <span className="font-mono text-[10px] font-normal opacity-80">HTTP {status}</span>}
       </span>
     ),
-    right: <CopyButton text={`${span.error.name}: ${span.error.message}\n${span.error.stack ?? ''}`} />,
+    right: <CopyButton text={errorText(span.error)} />,
     preview: <span className="text-muted-foreground">{span.error.message}</span>,
     body: (
       <>
         <div className="text-xs leading-relaxed">{span.error.message}</div>
-        {span.error.stack && (
-          <pre className="mt-2 max-h-72 overflow-auto rounded-md bg-muted/50 p-2.5 font-mono text-[10.5px] leading-relaxed text-muted-foreground">
-            {span.error.stack.split('\n').slice(1).join('\n').trim()}
-          </pre>
-        )}
+        {span.error.stack && <StackView error={span.error} className="mt-2 max-h-72" />}
       </>
     ),
   };
@@ -484,6 +483,7 @@ function hasSearchableOutput(span: SpanNode, trace: TraceRecord) {
 
 function OutputPanel({ span, trace, filter }: { span: SpanNode; trace: TraceRecord; filter: string }) {
   const q = lc(filter);
+  const lang = useLanguage();
   if (span.parentId === null) {
     const err = errorCard(span);
     if (!trace.http) return err ? <CardStack key={span.id} cards={[err]} /> : <Empty>Job finished without an HTTP response.</Empty>;
@@ -520,11 +520,11 @@ function OutputPanel({ span, trace, filter }: { span: SpanNode; trace: TraceReco
   if (span.result === undefined)
     return (
       <div className="space-y-3">
-        <TypeLine type={span.async ? 'Promise<void>' : 'void'} />
-        <Empty>Returned nothing (undefined).</Empty>
+        <TypeLine type={returnTypeOf(span, lang)} />
+        <Empty>{lang === 'python' ? 'Return value not recorded.' : 'Returned nothing (undefined).'}</Empty>
       </div>
     );
-  const type = span.resultType ? (span.async ? `Promise<${span.resultType}>` : span.resultType) : undefined;
+  const type = resultTypeOf(span, lang);
   return (
     <CardStack
       key={span.id}
@@ -571,6 +571,7 @@ function LogsPanel({ span }: { span: SpanNode }) {
 }
 
 function DetailsPanel({ span }: { span: SpanNode }) {
+  const lang = useLanguage();
   const rows: [string, React.ReactNode][] = [
     [
       'Name',
@@ -600,7 +601,7 @@ function DetailsPanel({ span }: { span: SpanNode }) {
       </span>,
     ],
   ];
-  const sig = signatureParts(span);
+  const sig = signatureParts(span, lang);
   const cards: CardSpec[] = [];
   if (span.parentId !== null)
     cards.push({
@@ -635,7 +636,18 @@ function DetailsPanel({ span }: { span: SpanNode }) {
   return <CardStack key={span.id} cards={cards} />;
 }
 
-export function SpanDetails({
+/** The inspector for one call; values and signatures follow the idioms of the trace's language. */
+export function SpanDetails(props: SpanDetailsProps) {
+  return (
+    <LanguageProvider value={languageOf(props.trace)}>
+      <SpanDetailsInner {...props} />
+    </LanguageProvider>
+  );
+}
+
+type SpanDetailsProps = Parameters<typeof SpanDetailsInner>[0];
+
+function SpanDetailsInner({
   span,
   trace,
   traceDuration,
@@ -839,6 +851,7 @@ function CollapsedSummary({ span }: { span: SpanNode }) {
 
 /** Why a span has no input/output. */
 function NotCaptured({ span }: { span: SpanNode }) {
+  const lang = useLanguage();
   return (
     <div className="flex items-start gap-2 rounded-md border border-dashed px-3 py-2.5 text-xs text-muted-foreground">
       <Info className="mt-px size-3.5 shrink-0" />
@@ -850,7 +863,7 @@ function NotCaptured({ span }: { span: SpanNode }) {
       ) : (
         <span>
           This request captured more data than the per-trace limit, so later calls kept their timing and errors but not their values. Raise{' '}
-          <code className="font-mono">maxCaptureBytes</code> in the tracer to keep more.
+          <code className="font-mono">{lang === 'python' ? 'max_capture_bytes' : 'maxCaptureBytes'}</code> in the tracer to keep more.
         </span>
       )}
     </div>

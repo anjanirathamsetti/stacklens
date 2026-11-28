@@ -27,6 +27,9 @@ export type CallHandle =
   | { mode: 'collapsed'; aggregate: SpanRecord; group: SiblingGroup; parentId: string | null; init: SpanInit; start: number }
   | { mode: 'dropped' };
 
+/** Sent with every trace so the UI can show the language (see `SdkInfo` in the contract). */
+const SDK_INFO = { name: '@stacklens/node-tracer', language: 'node', runtime: `Node.js ${process.versions.node}` };
+
 /** Failing collapsed calls recorded individually per group (with their arguments), so errors stay debuggable. */
 const KEEP_COLLAPSED_ERRORS = 3;
 
@@ -120,6 +123,7 @@ export class Tracer {
         duration: 0,
         status: 'pending',
         spans: [],
+        sdk: SDK_INFO,
       },
     };
     const root = this.startSpan(trace, null, { name, method: name, kind: rootKind, params: [] })!;

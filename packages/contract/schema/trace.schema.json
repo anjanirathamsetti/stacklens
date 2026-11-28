@@ -103,6 +103,18 @@
       },
       "additionalProperties": false
     },
+    "SdkInfo": {
+      "type": "object",
+      "description": "The SDK that recorded the trace, so the UI can show the language and use its idioms.",
+      "required": ["name", "language"],
+      "properties": {
+        "name": { "type": "string", "description": "Package name, e.g. @stacklens/node-tracer or stacklens-python-tracer." },
+        "version": { "type": "string" },
+        "language": { "type": "string", "description": "Language of the instrumented app, lower-case: node, python, …" },
+        "runtime": { "type": "string", "description": "Runtime and version, e.g. Node.js 22.12.0 or CPython 3.12.4." }
+      },
+      "additionalProperties": false
+    },
     "HttpExchange": {
       "type": "object",
       "required": ["method", "url"],
@@ -138,7 +150,8 @@
         "truncated": { "type": "boolean" },
         "droppedSpans": { "type": "integer", "minimum": 0 },
         "valuesTruncated": { "type": "boolean" },
-        "parent": { "$ref": "#/$defs/TraceParent" }
+        "parent": { "$ref": "#/$defs/TraceParent" },
+        "sdk": { "$ref": "#/$defs/SdkInfo" }
       },
       "additionalProperties": false
     }
