@@ -9,7 +9,7 @@
   "dependencies": {
     "@stacklens/node-tracer": "0.1.0",
     "axios": "^1.21.1",
-    "express": "^4.21.2"
+    "express": "^5.3.0"
   },
   "description": "Plain JavaScript Express API traced with autoInstrument()"
 }
