@@ -4,6 +4,7 @@ import { useCan } from '@/lib/current-user';
 import Link from 'next/link';
 import { Activity, MoreHorizontal, Pencil, Plus, Target, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -253,6 +254,7 @@ function SlosInner() {
       <PageHeader title="SLOs" description="Latency and availability objectives per route, with error budgets">
         <ViewsMenu />
         <ShareMenu />
+        <ExportPdfButton report="slos" disabled={!slos.length} />
         {canWrite && (
           <Button onClick={() => setDialog({ open: true })}>
             <Plus /> New SLO

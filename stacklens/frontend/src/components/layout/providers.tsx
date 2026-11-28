@@ -1,4 +1,5 @@
 'use client';
+import { usePathname } from 'next/navigation';
 import { ThemeProvider } from 'next-themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toast';
@@ -10,8 +11,10 @@ export { useLive } from '@/lib/settings-context';
 
 /** Providers for every page (theme, tooltips, toasts). */
 export function Providers({ children }: { children: React.ReactNode }) {
+  // PDF exports are always light, whatever theme the app is in
+  const forcedTheme = usePathname()?.startsWith('/print/') ? 'light' : undefined;
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange forcedTheme={forcedTheme}>
       <TooltipProvider>
         {children}
         <Toaster />

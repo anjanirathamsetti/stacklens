@@ -43,6 +43,7 @@ import { cn, formatDateTime, formatMs, KIND_META, SEVERITY, severityOf } from '@
 import { useSettings } from '@/lib/settings-context';
 import { OutcomeBadge } from '@/components/data-display/trace-badges';
 import { TraceShareMenu } from '@/features/traces/components/trace-share-menu';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { ExplainFailurePanel, ExplainSlowdownPanel } from '@/features/ai/components/ai-entry-points';
 import type { SpanKind, TraceRecord, TraceSummary } from '@stacklens/shared/api-types';
 
@@ -332,6 +333,7 @@ function TraceDetail({ id }: { id: string }) {
             spanId={selected?.parentId ? selected.id : undefined}
             spanName={selected?.name}
           />
+          <ExportPdfButton report={`traces/${encodeURIComponent(trace.id)}`} />
         </div>
       </header>
 
