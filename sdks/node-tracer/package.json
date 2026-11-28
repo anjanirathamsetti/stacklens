@@ -61,9 +61,9 @@
     "@types/node": "^22.10.0",
     "axios": "^1.21.1",
     "express": "^4.21.2",
-    "tsup": "^8.5.0",
-    "typescript": "^5.9.0",
-    "vitest": "^3.2.0"
+    "tsup": "^9.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.2"
   },
   "publishConfig": {
     "access": "public"
