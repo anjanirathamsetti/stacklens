@@ -1,6 +1,6 @@
 'use client';
 import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { Gauge, KeyRound, Keyboard, Monitor, Moon, Palette, RotateCcw, Sun, User } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
@@ -13,6 +13,7 @@ import { cn, formatDateTime, formatMs } from '@/lib/utils';
 import type { AuthUser } from '@stacklens/shared/api-types';
 import { ROLE_LABELS, useCurrentUser } from '@/lib/current-user';
 import { sendJson } from '@/lib/use-resource';
+import { SettingsMobileNav, SettingsNav } from '@/features/settings/settings-nav';
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -334,29 +335,15 @@ function ShortcutsTab() {
 
 function SettingsInner() {
   const sp = useSearchParams();
-  const router = useRouter();
   const tab = (TABS.find((t) => t.id === sp.get('tab'))?.id ?? 'profile') as TabId;
   return (
-    <>
-      <PageHeader title="Settings" description="Your account and personal preferences" />
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 md:flex-row">
-          <nav className="flex shrink-0 gap-1 overflow-x-auto md:w-52 md:flex-col">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => router.replace(`/settings?tab=${t.id}`, { scroll: false })}
-                className={cn(
-                  'flex h-9 items-center gap-2.5 whitespace-nowrap rounded-md px-3 text-sm text-muted-foreground transition-colors cursor-pointer hover:bg-accent hover:text-foreground',
-                  tab === t.id && 'bg-accent font-medium text-foreground',
-                )}
-              >
-                <t.icon className={cn('size-4', tab === t.id && 'text-brand')} />
-                {t.label}
-              </button>
-            ))}
-          </nav>
-          <div className="min-w-0 flex-1">
+    <div className="flex min-h-0 flex-1">
+      <SettingsNav />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <SettingsMobileNav />
+        <PageHeader title="Settings" description="Your account and preferences" />
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-3xl p-6">
             {tab === 'profile' && <ProfileTab />}
             {tab === 'appearance' && <AppearanceTab />}
             {tab === 'thresholds' && <ThresholdsTab />}
@@ -364,7 +351,7 @@ function SettingsInner() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

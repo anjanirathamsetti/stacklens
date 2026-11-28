@@ -12,9 +12,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  Shield,
   Sun,
-  User,
   type LucideIcon,
 } from 'lucide-react';
 import { LogoMark, Wordmark } from '@/components/brand/logo';
@@ -27,7 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip } from '@/components/ui/tooltip';
 import { openCommandPalette } from '@/components/layout/command-palette';
-import { NAV_GROUPS, SIDE_GROUPS, UNFILTERED, isActive, type NavItem, type SideItem } from '@/components/layout/nav-config';
+import { BOTTOM_LINKS, NAV_GROUPS, UNFILTERED, isActive, type NavItem } from '@/components/layout/nav-config';
 import { useFilters } from '@/lib/url-filters';
 import { normalizeQuery, useSavedViews } from '@/lib/saved-views';
 import { initials, useSettings } from '@/lib/settings-context';
@@ -231,59 +229,43 @@ function PinnedViews({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-/** Is this lower-group link the current page? Settings tabs match on `?tab=`. */
-function useSideMatch() {
+/** Setup guide and Settings, pinned above the account row. Settings covers /settings and the team pages under /admin. */
+function BottomLinks({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname();
-  const tab = useSearchParams().get('tab') ?? 'profile';
-  return (i: SideItem) => (i.tab ? pathname === '/settings' && tab === i.tab : isActive(pathname, i.href));
-}
-
-function SideLink({ item, collapsed, active }: { item: SideItem; collapsed: boolean; active: boolean }) {
-  const Icon = item.icon;
-  const link = (
-    <Link
-      href={item.href}
-      aria-label={item.label}
-      aria-current={active ? 'page' : undefined}
-      className={cn(
-        'group relative flex items-center rounded-md text-sm transition-colors',
-        collapsed ? 'mx-auto size-9 justify-center' : 'h-8 gap-2.5 px-2.5',
-        active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
-      )}
-    >
-      {!collapsed && active && <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-px bg-brand" />}
-      <Icon className="size-4 shrink-0" />
-      {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-      {!collapsed && item.shortcut && (
-        <kbd className="font-mono text-[10px] text-muted-foreground/70 opacity-0 transition-opacity group-hover:opacity-100">
-          {item.shortcut}
-        </kbd>
-      )}
-    </Link>
-  );
-  return collapsed ? (
-    <Tooltip content={item.shortcut ? `${item.label} (${item.shortcut})` : item.label} side="right">
-      {link}
-    </Tooltip>
-  ) : (
-    link
-  );
-}
-
-/** Preferences, Admin (admins only) and Help. */
-function SideGroups({ collapsed }: { collapsed: boolean }) {
-  const { can } = useCurrentUser();
-  const isOn = useSideMatch();
   return (
-    <>
-      {SIDE_GROUPS.filter((g) => !g.adminOnly || can('admin')).map((g) => (
-        <NavSection key={g.id} id={g.id} label={g.label} icon={g.icon} containsActive={g.items.some(isOn)} collapsed={collapsed}>
-          {g.items.map((i) => (
-            <SideLink key={i.href} item={i} collapsed={collapsed} active={isOn(i)} />
-          ))}
-        </NavSection>
-      ))}
-    </>
+    <div className={cn('space-y-0.5 border-t border-border/70 pt-2', collapsed ? 'px-2' : 'px-3')}>
+      {BOTTOM_LINKS.map((l) => {
+        const active = l.match.some((p) => isActive(pathname, p));
+        const link = (
+          <Link
+            key={l.href}
+            href={l.href}
+            aria-label={l.label}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+              'group flex items-center rounded-md text-sm transition-colors',
+              collapsed ? 'mx-auto size-9 justify-center' : 'h-8 gap-2.5 px-2.5',
+              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+            )}
+          >
+            <l.icon className="size-4 shrink-0" />
+            {!collapsed && <span className="flex-1 truncate">{l.label}</span>}
+            {!collapsed && l.shortcut && (
+              <kbd className="font-mono text-[10px] text-muted-foreground/70 opacity-0 transition-opacity group-hover:opacity-100">
+                {l.shortcut}
+              </kbd>
+            )}
+          </Link>
+        );
+        return collapsed ? (
+          <Tooltip key={l.href} content={l.shortcut ? `${l.label} (${l.shortcut})` : l.label} side="right">
+            {link}
+          </Tooltip>
+        ) : (
+          link
+        );
+      })}
+    </div>
   );
 }
 
@@ -336,19 +318,17 @@ function Nav({ collapsed }: { collapsed: boolean }) {
         </NavSection>
       ))}
       <PinnedViews collapsed={collapsed} />
-      <SideGroups collapsed={collapsed} />
     </nav>
   );
 }
 
 /**
  * Account button at the bottom of the sidebar: profile, admin and sign-out only.
- * Preferences, admin pages and help are sidebar groups (see SIDE_GROUPS).
+ * Settings (including the team pages for admins) and the setup guide are the links above it.
  */
 function AccountMenu({ collapsed }: { collapsed: boolean }) {
-  const { user, can } = useCurrentUser();
+  const { user } = useCurrentUser();
   const pathname = usePathname();
-  const router = useRouter();
   const { name, email } = user;
   const role = ROLE_LABELS[user.role].label;
   const sp = useSearchParams();
@@ -394,15 +374,6 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
           </div>
           <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{role}</span>
         </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => router.push('/settings?tab=profile')}>
-          <User /> Profile
-        </DropdownMenuItem>
-        {can('admin') && (
-          <DropdownMenuItem onSelect={() => router.push('/admin')}>
-            <Shield /> Admin
-          </DropdownMenuItem>
-        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => void signOut()}>
           <LogOut /> Sign out
@@ -475,13 +446,12 @@ export function AppSidebar() {
         <Nav collapsed={collapsed} />
       </Suspense>
 
+      <Suspense>
+        <BottomLinks collapsed={collapsed} />
+      </Suspense>
+
       {/* account */}
-      <div
-        className={cn(
-          'flex shrink-0 border-t border-border/70 pb-3 pt-2',
-          collapsed ? 'flex-col items-center gap-2 px-2' : 'items-center gap-1 px-3',
-        )}
-      >
+      <div className={cn('flex shrink-0 pb-3 pt-1.5', collapsed ? 'flex-col items-center gap-2 px-2' : 'items-center gap-1 px-3')}>
         {collapsed && <ThemeToggle collapsed />}
         <div className={cn(!collapsed && 'min-w-0 flex-1')}>
           <Suspense>

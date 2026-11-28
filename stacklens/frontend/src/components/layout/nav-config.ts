@@ -5,16 +5,13 @@ import {
   Flame,
   Gauge,
   Keyboard,
-  LifeBuoy,
   LayoutDashboard,
   Newspaper,
   Palette,
   Radar,
   Settings,
-  Shield,
   ShieldCheck,
   Siren,
-  SlidersHorizontal,
   Target,
   type LucideIcon,
 } from 'lucide-react';
@@ -61,65 +58,16 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-/** A link in one of the lower sidebar groups. `tab` marks a tab of /settings (matched on `?tab=`). */
-export interface SideItem extends NavItem {
-  tab?: string;
-  /** shown on hover, e.g. `?` */
-  shortcut?: string;
-}
-
-export interface SideGroup {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  /** shown to admins only */
-  adminOnly?: boolean;
-  items: SideItem[];
-}
-
-/**
- * Below the data sections: personal preferences, team administration (admins) and help.
- * The profile lives in the account menu at the bottom of the sidebar.
- */
-export const SIDE_GROUPS: SideGroup[] = [
+/** Pinned above the account row: everyone's way into setup and settings (team settings included, for admins). */
+export const BOTTOM_LINKS: (NavItem & { shortcut?: string; match: string[] })[] = [
+  { href: '/setup', label: 'Setup guide', icon: BookOpen, match: ['/setup'], keywords: 'install sdk instrument python node' },
   {
-    id: 'preferences',
-    label: 'Preferences',
-    icon: SlidersHorizontal,
-    items: [
-      {
-        href: '/settings?tab=appearance',
-        tab: 'appearance',
-        label: 'Appearance',
-        icon: Palette,
-        shortcut: '⌘,',
-        keywords: 'theme dark light time format',
-      },
-      { href: '/settings?tab=thresholds', tab: 'thresholds', label: 'Health thresholds', icon: Gauge, keywords: 'latency error rate' },
-    ],
-  },
-  {
-    id: 'admin',
-    label: 'Admin',
-    icon: Shield,
-    adminOnly: true,
-    items: ADMIN_SECTIONS.flatMap((g) => g.items),
-  },
-  {
-    id: 'help',
-    label: 'Help',
-    icon: LifeBuoy,
-    items: [
-      { href: '/setup', label: 'Setup guide', icon: BookOpen, keywords: 'install sdk instrument python node' },
-      {
-        href: '/settings?tab=shortcuts',
-        tab: 'shortcuts',
-        label: 'Keyboard shortcuts',
-        icon: Keyboard,
-        shortcut: '?',
-        keywords: 'keys hotkeys',
-      },
-    ],
+    href: '/settings?tab=profile',
+    label: 'Settings',
+    icon: Settings,
+    shortcut: '⌘,',
+    match: ['/settings', '/admin'],
+    keywords: 'profile preferences admin',
   },
 ];
 
@@ -134,6 +82,6 @@ export const ACCOUNT_ITEMS: NavItem[] = [
   { href: '/settings?tab=shortcuts', label: 'Keyboard shortcuts', icon: Keyboard, keywords: 'keys hotkeys' },
 ];
 
-export const ADMIN_ITEMS: NavItem[] = ADMIN_SECTIONS.flatMap((g) => g.items).map((i) => ({ ...i, label: `Admin · ${i.label}` }));
+export const ADMIN_ITEMS: NavItem[] = ADMIN_SECTIONS.flatMap((g) => g.items).map((i) => ({ ...i, label: `Settings · ${i.label}` }));
 
 export const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + '/');
