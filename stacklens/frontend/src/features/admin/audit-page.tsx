@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react';
 import { ScrollText } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,33 +10,7 @@ import { useResource } from '@/lib/use-resource';
 import { useSettings } from '@/lib/settings-context';
 import { cn, formatDateTime } from '@/lib/utils';
 import type { AuditEntry } from '@stacklens/shared/api-types';
-
-/** Plain-language labels for audit actions. */
-const LABELS: Record<string, string> = {
-  login: 'Signed in',
-  logout: 'Signed out',
-  'login.failed': 'Failed sign-in',
-  'login.blocked': 'Blocked sign-in (disabled account)',
-  'setup.admin_created': 'Created the first admin',
-  'setup.admin_bootstrapped': 'Created the first admin from environment variables',
-  'password.changed': 'Changed their password',
-  'profile.updated': 'Updated their profile',
-  'user.created': 'Added a user',
-  'user.updated': 'Changed a user',
-  'user.deleted': 'Deleted a user',
-  'user.password_reset': 'Reset a user’s password',
-  'api_key.created': 'Created an API key',
-  'api_key.revoked': 'Revoked an API key',
-  'data.traces_cleared': 'Deleted all trace data',
-};
-
-const label = (a: string) => LABELS[a] ?? (a.startsWith('settings.') ? `Changed ${a.split('.')[1]} settings` : a);
-const tone = (a: string) =>
-  a === 'login.failed' || a === 'login.blocked' || a.endsWith('deleted') || a.endsWith('revoked') || a.endsWith('cleared')
-    ? 'bg-destructive'
-    : a.startsWith('login') || a === 'logout'
-      ? 'bg-muted-foreground/40'
-      : 'bg-brand';
+import { auditLabel as label, auditTone as tone } from '@/features/admin/audit-labels';
 
 export default function AuditPage() {
   const { data, reload, loading } = useResource<{ entries: AuditEntry[] }>('/api/admin/audit?limit=300');
@@ -58,6 +33,7 @@ export default function AuditPage() {
         <Button variant="outline" size="sm" onClick={() => void reload()} disabled={loading}>
           Refresh
         </Button>
+        <ExportPdfButton report="admin/audit" params={{ q: query, hideSignIns }} />
       </PageHeader>
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-5xl p-6">
@@ -79,6 +55,7 @@ export default function AuditPage() {
                 Hide sign-ins
               </label>
               <span className="ml-auto text-xs text-muted-foreground">Latest 300 events</span>
+              <ExportPdfButton report="admin/audit" variant="table" noun="events" params={{ q: query, hideSignIns }} />
             </div>
             <div className="divide-y">
               {entries.map((e) => (

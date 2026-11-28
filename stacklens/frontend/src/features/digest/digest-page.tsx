@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { ShareMenu, ViewsMenu } from '@/components/layout/view-controls';
 import { useFacets } from '@/components/layout/filter-bar';
 import { Card } from '@/components/ui/card';
@@ -28,24 +29,7 @@ import { cn, formatMs, timeAgo } from '@/lib/utils';
 import type { Digest, DigestRoute, ErrorGroup } from '@stacklens/shared/api-types';
 import { STATE_META, pct } from '@/features/slos/slo-format';
 import { DeliveryCard } from '@/features/digest/components/delivery-card';
-
-const PERIODS = {
-  '24h': 'Last 24 hours',
-  yesterday: 'Yesterday',
-  today: 'Today so far',
-  '7d': 'Last 7 days',
-} as const;
-type Period = keyof typeof PERIODS;
-
-function windowOf(p: Period, now: number): { from: number; to: number } {
-  const midnight = new Date(now);
-  midnight.setHours(0, 0, 0, 0);
-  const m = midnight.getTime();
-  if (p === 'yesterday') return { from: m - 86_400_000, to: m };
-  if (p === 'today') return { from: m, to: now };
-  if (p === '7d') return { from: now - 7 * 86_400_000, to: now };
-  return { from: now - 86_400_000, to: now };
-}
+import { PERIODS, windowOf, type Period } from '@/features/digest/digest-period';
 
 /** "+12%" coloured by whether the change is good or bad. */
 function Delta({ cur, prev, higherIsBad }: { cur: number; prev: number; higherIsBad?: boolean }) {
@@ -230,6 +214,7 @@ function DigestInner() {
         </Select>
         <ViewsMenu />
         <ShareMenu />
+        <ExportPdfButton report="digest" />
       </PageHeader>
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto grid max-w-7xl gap-4 p-6 lg:grid-cols-[minmax(0,1fr)_320px]">

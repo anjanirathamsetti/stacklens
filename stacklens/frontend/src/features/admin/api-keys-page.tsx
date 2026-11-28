@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { AlertTriangle, KeyRound, Plus, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -151,6 +152,7 @@ export default function ApiKeysPage() {
   return (
     <>
       <PageHeader title="API keys" description="Keys your instrumented apps use to send traces">
+        <ExportPdfButton report="admin/api-keys" />
         <Button onClick={() => setCreating(true)}>
           <Plus /> New key
         </Button>

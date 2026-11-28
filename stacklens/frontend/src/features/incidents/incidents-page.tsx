@@ -3,6 +3,7 @@ import { Suspense, startTransition, useCallback, useEffect, useState } from 'rea
 import Link from 'next/link';
 import { AlertTriangle, Bug, CheckCircle2, ExternalLink, Loader2, Play, Plug, Search, Send, ShieldCheck, Siren, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { FilterBar } from '@/components/layout/filter-bar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,8 @@ import { useCan, useCurrentUser } from '@/lib/current-user';
 import { cn, SEVERITY, timeAgo } from '@/lib/utils';
 import type { ErrorGroup, Incident, IncidentSource, SpanKind } from '@stacklens/shared/api-types';
 
-type Row = Incident & {
+/** An incident as `/api/incidents` returns it: the ticket plus live stats of the error it tracks. */
+export type IncidentRow = Incident & {
   error?: {
     id: string;
     name: string;
@@ -35,6 +37,7 @@ type Row = Incident & {
   lastSeen?: number;
   lastTraceId?: string;
 };
+type Row = IncidentRow;
 
 function MiniBars({ values, tone }: { values: number[]; tone: string }) {
   const max = Math.max(1, ...values);
@@ -327,6 +330,7 @@ function IncidentsInner() {
     <>
       <PageHeader title="Incidents" description="ServiceNow tickets tied to the errors StackLens detects">
         <SourceBanner source={source} />
+        <ExportPdfButton report="incidents" params={{ tab: tab === 'open' ? '' : tab, search }} />
       </PageHeader>
       <FilterBar onRefresh={load} />
       <div className="flex min-h-0 flex-1">
@@ -373,6 +377,12 @@ function IncidentsInner() {
                       onChange={(e) => setSearch(e.target.value)}
                     />
                   </div>
+                  <ExportPdfButton
+                    report="incidents"
+                    variant="table"
+                    noun="incidents"
+                    params={{ tab: tab === 'open' ? '' : tab, search }}
+                  />
                 </div>
               }
             >

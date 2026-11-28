@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, KeyRound, MoreHorizontal, Plus, ShieldCheck, Trash2, UserCheck, UserPlus, UserX, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -256,6 +257,7 @@ export default function UsersPage() {
   return (
     <>
       <PageHeader title="Users" description="Who can sign in to StackLens, and what they can do">
+        <ExportPdfButton report="admin/users" params={{ q: query }} />
         <Button onClick={() => setAdding(true)}>
           <Plus /> Add user
         </Button>

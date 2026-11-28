@@ -3,6 +3,7 @@ import { Suspense, startTransition, useCallback, useEffect, useMemo, useState } 
 import { useCan } from '@/lib/current-user';
 import { AlertTriangle, Search, Trash2, Inbox, X, Activity, Timer, Gauge, ArrowDown, ArrowUp, ArrowUpDown, Globe } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { AskAiButton } from '@/features/ai/components/ai-entry-points';
 import { FilterBar } from '@/components/layout/filter-bar';
 import { Button } from '@/components/ui/button';
@@ -216,6 +217,7 @@ function TracesInner() {
             </Button>
           </Tooltip>
         )}
+        <ExportPdfButton report="traces" params={{ at: anchor ?? undefined }} />
       </PageHeader>
       <FilterBar onRefresh={load} />
 
@@ -305,6 +307,7 @@ function TracesInner() {
                   Reset
                 </Button>
               )}
+              <ExportPdfButton report="traces" variant="table" noun="traces" params={{ at: anchor ?? undefined }} />
             </div>
           }
           notice={

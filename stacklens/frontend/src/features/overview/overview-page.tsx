@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Activity, AlertTriangle, Gauge, Timer, Users, GitBranch, ChevronRight } from 'lucide-react';
 import { KpiCard } from '@/features/overview/components/kpi-card';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { FilterBar } from '@/components/layout/filter-bar';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -86,7 +87,9 @@ function OverviewInner() {
 
   return (
     <>
-      <PageHeader title="Overview" description="Live health of every instrumented application" />
+      <PageHeader title="Overview" description="Live health of every instrumented application">
+        <ExportPdfButton report="overview" />
+      </PageHeader>
       <FilterBar onRefresh={load} />
       <div className="flex-1 overflow-y-auto">
         <div className="space-y-4 p-6">

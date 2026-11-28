@@ -3,6 +3,7 @@ import { Suspense, startTransition, useCallback, useEffect, useState } from 'rea
 import Link from 'next/link';
 import { Search, ExternalLink, Flame } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { FilterBar } from '@/components/layout/filter-bar';
 import { Pagination, TableShell, filterKeyOf, usePaged } from '@/components/data-display/pagination';
 import { useLive } from '@/components/layout/providers';
@@ -64,10 +65,13 @@ function InsightsInner() {
   const rows = items.filter((h) => !kind || h.kind === kind).sort((a, b) => b[sort] - a[sort]);
   const maxSelf = Math.max(1, ...rows.map((r) => r.totalSelf));
   const pg = usePaged(rows, `${filterKeyOf(sp)}|${search}|${kind}|${sort}`);
+  const exportParams = { search, kind, sort: sort === 'totalSelf' ? '' : sort };
 
   return (
     <>
-      <PageHeader title="Hotspots" description="Every instrumented function aggregated across the traces in range" />
+      <PageHeader title="Hotspots" description="Every instrumented function aggregated across the traces in range">
+        <ExportPdfButton report="hotspots" params={exportParams} />
+      </PageHeader>
       <FilterBar onRefresh={load} />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
         <TableShell
@@ -88,6 +92,7 @@ function InsightsInner() {
                 <option value="db">DB / SQL</option>
                 <option value="function">Functions</option>
               </Select>
+              <ExportPdfButton report="hotspots" variant="table" noun="functions" params={exportParams} />
             </div>
           }
         >
