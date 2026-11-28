@@ -2,11 +2,14 @@
 
 The server is one process: collector API + UI on a single port (default `4300`).
 
-## npx / npm
+## From source
+
+StackLens isn't published to npm yet (the `stacklens` name on npm belongs to an unrelated package).
 
 ```bash
-npx stacklens                                # http://localhost:4300
-npx stacklens --port 8080 --data-dir ./data
+npm install && npm run build
+npm start                                    # http://localhost:4300
+node stacklens/frontend/bin/stacklens.mjs --port 8080 --data-dir ./data
 ```
 
 ## Docker
