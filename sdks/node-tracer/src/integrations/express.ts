@@ -1,6 +1,7 @@
 import { AsyncResource } from 'node:async_hooks';
 import type { EventEmitter } from 'node:events';
 import { traceContext } from '../core/context';
+import { parentFromHeaders } from '../core/propagation';
 import { tracer } from '../core/tracer';
 
 type Req = any;
@@ -77,8 +78,16 @@ export function expressMiddleware(options: ExpressMiddlewareOptions = {}) {
     const method: string = req.method ?? 'GET';
     const { trace, root } = tracer.createTrace(`${method} ${path}`, 'http', 'http');
     trace.record.http = { method, url: req.originalUrl ?? req.url, ip: req.ip ?? req.socket?.remoteAddress };
+    // called by another instrumented service: link back to its outgoing-call span
+    try {
+      const parent = parentFromHeaders(req.headers);
+      if (parent) trace.record.parent = parent;
+    } catch {
+      /* malformed headers */
+    }
     req.stacklensTraceId = trace.record.id;
     try {
+      // lets an instrumented caller record which trace this request became (see http-client)
       res.setHeader?.('x-stacklens-trace-id', trace.record.id);
     } catch {
       /* headers already sent */

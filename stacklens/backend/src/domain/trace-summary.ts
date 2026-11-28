@@ -52,7 +52,22 @@ export function summarize(t: TraceRecord): TraceSummary {
     kindTime,
     errors,
     hasPayload: true,
+    parent: validParent(t.parent),
+    outboundCount: t.spans.reduce((n, s) => n + (s.outbound ? callCount(s) : 0), 0),
+    outboundHosts: [
+      ...new Set(t.spans.flatMap((s) => (typeof s.outbound?.host === 'string' ? [s.outbound.host.slice(0, 200)] : []))),
+    ].slice(0, 10),
   };
+}
+
+const ID = /^[\w.:-]{1,128}$/;
+
+/** The SDK-reported caller, if well-formed (ids are matched against other traces, so keep them tidy). */
+export function validParent(p: unknown): TraceSummary['parent'] {
+  if (!p || typeof p !== 'object') return undefined;
+  const { traceId, spanId, service } = p as Record<string, unknown>;
+  if (typeof traceId !== 'string' || typeof spanId !== 'string' || !ID.test(traceId) || !ID.test(spanId)) return undefined;
+  return typeof service === 'string' && service ? { traceId, spanId, service: service.slice(0, 200) } : { traceId, spanId };
 }
 
 /** Collapse ids, numbers and quoted strings so "User 9 not found" and "User 42 not found" group together. */

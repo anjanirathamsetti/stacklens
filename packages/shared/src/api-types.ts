@@ -2,8 +2,19 @@
  * Types of the server's HTTP API (what the UI fetches). The trace format the SDK sends is
  * the shared contract in `@stacklens/types`, re-exported here so UI code has one import site.
  */
-export type { HttpExchange, LogLevel, SpanError, SpanKind, SpanLog, SpanRecord, SpanStatus, TraceRecord } from '@stacklens/types';
-import type { SpanKind, SpanStatus } from '@stacklens/types';
+export type {
+  HttpExchange,
+  LogLevel,
+  OutboundCall,
+  SpanError,
+  SpanKind,
+  SpanLog,
+  SpanRecord,
+  SpanStatus,
+  TraceParent,
+  TraceRecord,
+} from '@stacklens/types';
+import type { SpanKind, SpanStatus, TraceParent } from '@stacklens/types';
 
 export interface ErrorRef {
   spanName: string;
@@ -39,6 +50,22 @@ export interface TraceSummary {
   errors: ErrorRef[];
   /** false once the full payload was evicted (summary kept for metrics) */
   hasPayload?: boolean;
+  /** the outgoing call in another service that caused this trace */
+  parent?: TraceParent;
+  /** outgoing HTTP calls the request made (including ones folded into repeated-call rows) */
+  outboundCount?: number;
+  /** distinct hosts those calls went to (first 10) */
+  outboundHosts?: string[];
+  /** traces of called services stored on this server that link back to this trace */
+  linkedChildren?: number;
+}
+
+/** `GET /api/traces/:id/links` – how a trace connects to traces of other services. */
+export interface TraceLinks {
+  /** The calling service's trace; `trace` is missing when it isn't stored on this server. */
+  parent?: TraceParent & { trace?: TraceSummary };
+  /** Traces of called services, keyed by the outgoing-call span (`spanId`) in this trace. */
+  children: { spanId: string; trace: TraceSummary }[];
 }
 
 export interface Facets {

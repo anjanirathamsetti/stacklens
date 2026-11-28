@@ -8,6 +8,7 @@ import { IncidentChip } from '@/features/incidents/components/incident-badges';
 import { CreateIncidentDialog } from '@/features/incidents/components/create-incident-dialog';
 import { Pagination, TableShell, filterKeyOf, usePaged } from '@/components/data-display/pagination';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { SummarizeErrorsButton } from '@/features/ai/components/ai-entry-points';
 import { FilterBar } from '@/components/layout/filter-bar';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +65,7 @@ function ErrorsInner() {
     <>
       <PageHeader title="Errors" description="Exceptions grouped by where they were thrown">
         <SummarizeErrorsButton />
+        <ExportPdfButton report="errors" params={{ search }} />
       </PageHeader>
       <FilterBar onRefresh={load} />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">
@@ -82,6 +84,7 @@ function ErrorsInner() {
                 />
               </div>
               <span className="text-xs text-muted-foreground">{groups ? `${rows.length} groups · ${total} occurrences` : 'Loading…'}</span>
+              <ExportPdfButton report="errors" variant="table" noun="error groups" params={{ search }} />
             </div>
           }
         >

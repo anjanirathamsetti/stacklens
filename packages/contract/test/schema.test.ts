@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { CollapsedCalls, HttpExchange, IngestRequest, SpanError, SpanLog, SpanRecord, TraceRecord } from '../src/index';
+import type {
+  CollapsedCalls,
+  HttpExchange,
+  IngestRequest,
+  OutboundCall,
+  SpanError,
+  SpanLog,
+  SpanRecord,
+  TraceParent,
+  TraceRecord,
+} from '../src/index';
 import { schema, validate } from '../schema/validate.mjs';
 
 /* Fully-populated values. `satisfies Required<…>` fails to compile when a field is added to a type
@@ -7,6 +17,19 @@ import { schema, validate } from '../schema/validate.mjs';
 const log = { t: 1.5, level: 'info', message: 'hi', data: { a: 1 } } satisfies Required<SpanLog>;
 const error = { name: 'NotFound', message: 'nope', stack: 'Error: nope', status: 404 } satisfies Required<SpanError>;
 const collapsed = { count: 9990, totalDuration: 12, minDuration: 0, maxDuration: 1, errors: 0 } satisfies Required<CollapsedCalls>;
+const outbound = {
+  method: 'GET',
+  url: 'http://billing:3002/orders/1?token=[REDACTED]',
+  host: 'billing:3002',
+  statusCode: 200,
+  propagated: true,
+  childTraceId: 'c0ffee',
+} satisfies Required<OutboundCall>;
+const parent = {
+  traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
+  spanId: '00f067aa0ba902b7',
+  service: 'orders-api',
+} satisfies Required<TraceParent>;
 const span = {
   id: 's2',
   parentId: 's1',
@@ -29,6 +52,7 @@ const span = {
   collapsed,
   valuesDropped: false,
   droppedLogs: 0,
+  outbound,
 } satisfies Required<SpanRecord>;
 const http = {
   method: 'GET',
@@ -68,6 +92,7 @@ const trace = {
   truncated: false,
   droppedSpans: 0,
   valuesTruncated: false,
+  parent,
 } satisfies Required<TraceRecord>;
 
 const keysOf = (def: string) => Object.keys(schema.$defs[def].properties ?? {}).sort();
@@ -77,6 +102,8 @@ describe('trace.schema.json', () => {
     ['SpanLog', log],
     ['SpanError', error],
     ['CollapsedCalls', collapsed],
+    ['OutboundCall', outbound],
+    ['TraceParent', parent],
     ['SpanRecord', span],
     ['HttpExchange', http],
     ['TraceRecord', trace],
@@ -102,5 +129,9 @@ describe('trace.schema.json', () => {
     expect(errors).toContain('$.spans[0].duration: -1 < 0');
     expect(errors).toContain('$.spans[1]: unknown property "extra"');
     expect(validate({ traces: [{ id: 'x' }] })).toContain('$.traces[0]: missing required "spans"');
+    expect(validate({ ...trace, parent: { traceId: 'a' } }, 'TraceRecord')).toContain('$.parent: missing required "spanId"');
+    expect(validate({ ...trace, spans: [{ ...span, outbound: { method: 'GET', url: '/x' } }] }, 'TraceRecord')).toContain(
+      '$.spans[0].outbound: missing required "host"',
+    );
   });
 });

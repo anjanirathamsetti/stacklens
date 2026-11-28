@@ -37,6 +37,7 @@
     "test": "npm run test --workspaces --if-present",
     "example:express": "npm run start -w @stacklens-examples/express-basic",
     "example:nest": "npm run start -w @stacklens-examples/nestjs-typeorm",
+    "example:shipping": "npm run start -w @stacklens-examples/shipping-service",
     "traffic": "node scripts/generate-traffic.mjs",
     "docker:build": "docker build -f deploy/docker/Dockerfile -t stacklens:local .",
     "clean": "rm -rf packages/*/dist sdks/*/dist stacklens/frontend/.next stacklens/frontend/.next.nosync stacklens/frontend/dist",

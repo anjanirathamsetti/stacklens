@@ -198,3 +198,55 @@
     opacity: 1;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* PDF exports (/print/*): A4, light, page numbers in the footer        */
+/* ------------------------------------------------------------------ */
+
+@page {
+  size: A4;
+  margin: 13mm 12mm 15mm;
+  /* the running title on the left is set per report (components/print/print-document.tsx) */
+  @bottom-left {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 7.5pt;
+    color: #737373;
+  }
+  @bottom-right {
+    content: 'Page ' counter(page) ' of ' counter(pages);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 7.5pt;
+    color: #737373;
+  }
+}
+
+@media print {
+  html,
+  body {
+    background: white !important;
+  }
+  /* keep badge fills, bars and chart colours instead of dropping backgrounds */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* PDF frame: the StackLens bar (thead) repeats on every page; the single body cell flows across pages */
+.print-frame > thead {
+  display: table-header-group;
+}
+.print-frame > tbody > tr {
+  break-inside: auto;
+}
+
+/* repeat the header row on every page and never cut a row in half */
+.print-table thead {
+  display: table-header-group;
+}
+.print-table tr {
+  break-inside: avoid;
+}
+.print-table td {
+  overflow-wrap: anywhere;
+}

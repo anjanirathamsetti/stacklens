@@ -15,6 +15,7 @@ export function parseQuery(url: string): TraceQuery {
     userId: str('user'),
     route: str('route'),
     minDuration: num('minDuration'),
+    external: sp.get('external') === '1' || undefined,
     from: num('from'),
     to: num('to'),
     limit: num('limit'),

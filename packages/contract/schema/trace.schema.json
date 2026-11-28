@@ -73,7 +73,33 @@
         "attributes": { "type": "object" },
         "collapsed": { "$ref": "#/$defs/CollapsedCalls" },
         "valuesDropped": { "type": "boolean" },
-        "droppedLogs": { "type": "integer", "minimum": 0 }
+        "droppedLogs": { "type": "integer", "minimum": 0 },
+        "outbound": { "$ref": "#/$defs/OutboundCall" }
+      },
+      "additionalProperties": false
+    },
+    "OutboundCall": {
+      "type": "object",
+      "description": "An outgoing HTTP call made inside the trace (set on a span of kind http).",
+      "required": ["method", "url", "host"],
+      "properties": {
+        "method": { "type": "string" },
+        "url": { "type": "string", "description": "Absolute URL; query values of secret-looking keys are redacted." },
+        "host": { "type": "string", "description": "hostname[:port] of the callee." },
+        "statusCode": { "type": "integer" },
+        "propagated": { "type": "boolean", "description": "A W3C traceparent header was sent." },
+        "childTraceId": { "type": "string", "minLength": 1, "description": "Trace id the callee returned in x-stacklens-trace-id." }
+      },
+      "additionalProperties": false
+    },
+    "TraceParent": {
+      "type": "object",
+      "description": "The outgoing-call span in another service that caused this trace (from an incoming traceparent header).",
+      "required": ["traceId", "spanId"],
+      "properties": {
+        "traceId": { "type": "string", "minLength": 1 },
+        "spanId": { "type": "string", "minLength": 1 },
+        "service": { "type": "string" }
       },
       "additionalProperties": false
     },
@@ -111,7 +137,8 @@
         "spans": { "type": "array", "items": { "$ref": "#/$defs/SpanRecord" }, "description": "Flat list; the root span comes first." },
         "truncated": { "type": "boolean" },
         "droppedSpans": { "type": "integer", "minimum": 0 },
-        "valuesTruncated": { "type": "boolean" }
+        "valuesTruncated": { "type": "boolean" },
+        "parent": { "$ref": "#/$defs/TraceParent" }
       },
       "additionalProperties": false
     }

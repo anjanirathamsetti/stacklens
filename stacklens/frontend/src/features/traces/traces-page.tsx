@@ -1,8 +1,9 @@
 'use client';
 import { Suspense, startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import { useCan } from '@/lib/current-user';
-import { AlertTriangle, Search, Trash2, Inbox, X, Activity, Timer, Gauge, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { AlertTriangle, Search, Trash2, Inbox, X, Activity, Timer, Gauge, ArrowDown, ArrowUp, ArrowUpDown, Globe } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ExportPdfButton } from '@/components/print/export-pdf-button';
 import { AskAiButton } from '@/features/ai/components/ai-entry-points';
 import { FilterBar } from '@/components/layout/filter-bar';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,42 @@ import { Pagination, TableShell, filterKeyOf, usePageState } from '@/components/
 import { useFilters, useLiveRefresh } from '@/lib/url-filters';
 import { cn, formatDateTime, formatMs, timeAgo } from '@/lib/utils';
 import type { Metrics, TraceSummary } from '@stacklens/shared/api-types';
+
+/** "↗ 3 · 1 traced": this request called other services; how many of those calls have a linked trace. */
+function OutboundBadge({ t }: { t: TraceSummary }) {
+  const n = t.outboundCount ?? 0;
+  const linked = t.linkedChildren ?? 0;
+  const hosts = t.outboundHosts ?? [];
+  return (
+    <Tooltip
+      content={
+        <div className="max-w-xs space-y-1 text-xs">
+          <div className="font-medium">
+            {n} outgoing HTTP call{n === 1 ? '' : 's'}
+            {hosts.length > 0 && <> to {hosts.join(', ')}</>}
+          </div>
+          <div className="text-muted-foreground">
+            {linked
+              ? `${linked} called service trace${linked === 1 ? '' : 's'} linked – expand those calls in the call tree.`
+              : 'No called service reported a trace here (not instrumented, or reports to another server). Request and response are still recorded.'}
+          </div>
+        </div>
+      }
+    >
+      <span
+        className={cn(
+          'inline-flex shrink-0 items-center gap-1 rounded border px-1 py-px font-mono text-[10px] font-medium',
+          linked ? 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300' : 'border-border bg-muted text-muted-foreground',
+        )}
+        aria-label={`${n} outgoing calls, ${linked} linked`}
+      >
+        <Globe className="size-3" />
+        {n}
+        {linked > 0 && <span className="font-normal">· {linked} traced</span>}
+      </span>
+    </Tooltip>
+  );
+}
 
 function DurationBar({ ms, max }: { ms: number; max: number }) {
   const pct = Math.max(2, Math.min(100, (ms / Math.max(max, 1)) * 100));
@@ -100,6 +137,7 @@ function TracesInner() {
   const method = sp.get('method') ?? '';
   const route = sp.get('route') ?? '';
   const minDuration = sp.get('minDuration') ?? '';
+  const external = sp.get('external') === '1' ? '1' : '';
   const sort = (['time', 'duration', 'calls', 'errors', 'status'].includes(sp.get('sort') ?? '') ? sp.get('sort') : 'time') as SortKey;
   const order = (sp.get('order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
   const onSort = (k: SortKey) => {
@@ -124,13 +162,14 @@ function TracesInner() {
       method,
       route,
       minDuration,
+      external,
       sort: sort === 'time' ? '' : sort,
       order: order === 'desc' ? '' : order,
       limit: pg.size,
       offset: pg.offset,
       ...(anchor ? { to: anchor } : {}),
     }),
-    [sp, status, method, route, minDuration, sort, order, pg.size, pg.offset, anchor],
+    [sp, status, method, route, minDuration, external, sort, order, pg.size, pg.offset, anchor],
   );
 
   const load = useCallback(async () => {
@@ -164,7 +203,7 @@ function TracesInner() {
   };
 
   const maxDuration = Math.max(1, ...traces.map((t) => t.duration));
-  const filtered = !!(sp.get('search') || status || method || route || minDuration);
+  const filtered = !!(sp.get('search') || status || method || route || minDuration || external);
   const tt = metrics?.totals;
 
   return (
@@ -178,6 +217,7 @@ function TracesInner() {
             </Button>
           </Tooltip>
         )}
+        <ExportPdfButton report="traces" params={{ at: anchor ?? undefined }} />
       </PageHeader>
       <FilterBar onRefresh={load} />
 
@@ -235,6 +275,10 @@ function TracesInner() {
                 <option value="4xx">4xx</option>
                 <option value="5xx">5xx</option>
               </Select>
+              <Select value={external} clearable className="w-44" onChange={(e) => set({ external: e.target.value })}>
+                <option value="">Any outgoing calls</option>
+                <option value="1">Calls other services</option>
+              </Select>
               {route && (
                 <Badge tone="brand" className="h-8 gap-1.5 px-2 text-xs">
                   route: <span className="font-mono">{route}</span>
@@ -257,12 +301,13 @@ function TracesInner() {
                   size="sm"
                   onClick={() => {
                     setSearch('');
-                    set({ search: '', status: '', method: '', route: '', minDuration: '' });
+                    set({ search: '', status: '', method: '', route: '', minDuration: '', external: '' });
                   }}
                 >
                   Reset
                 </Button>
               )}
+              <ExportPdfButton report="traces" variant="table" noun="traces" params={{ at: anchor ?? undefined }} />
             </div>
           }
           notice={
@@ -309,6 +354,7 @@ function TracesInner() {
                       <div className="flex items-center gap-2">
                         {t.method ? <MethodBadge method={t.method} /> : <MethodBadge method="JOB" />}
                         <span className="truncate font-mono text-[13px]">{t.route ?? t.name.replace(/^\w+ /, '')}</span>
+                        {!!t.outboundCount && <OutboundBadge t={t} />}
                       </div>
                       {t.url && t.route && t.url !== t.route && (
                         <div className="mt-0.5 truncate pl-[60px] font-mono text-[11px] text-muted-foreground">{t.url}</div>

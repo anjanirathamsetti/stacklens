@@ -43,6 +43,7 @@ app.use(stacklens.express());
 | `stacklens.instrument(obj)` / `instrumentClass(Cls)` / `wrap(fn, name)` / `@Traced()` | Manual instrumentation. |
 | `stacklens.trace(name, fn)` | Root trace outside HTTP (jobs, consumers, scripts). |
 | `stacklens.log(msg, data)` / `setAttributes()` / `setUser(id)` / `currentTraceId()` | Enrich the current trace. |
+| `stacklens.propagationHeaders()` | `traceparent` / `tracestate` for transports StackLens doesn't patch (queues, gRPC). |
 | `stacklens.flush()` | Send queued traces now. |
 
 ## Options
@@ -65,7 +66,22 @@ app.use(stacklens.express());
 | `maxLogsPerSpan` | `50` | |
 | `maxSpansPerTrace` | `2000` (last line of defence) | |
 | `maxDepth` / `maxStringLength` / `maxArrayLength` / `maxObjectKeys` | `6` / `2000` / `30` / `50` | |
+| `captureOutbound` | `true` – outgoing HTTP calls become spans | `STACKLENS_CAPTURE_OUTBOUND` |
+| `propagate` | `true` – send W3C `traceparent` with outgoing calls | `STACKLENS_PROPAGATE` |
+| `propagateTo` | every host; e.g. `['billing.internal', '.svc.local', /^10\./]` | |
 | `exporter(trace)` | HTTP batch exporter | |
+
+### Calls to other services
+
+`init()` patches `http`/`https` `request`/`get` and the global `fetch`, so calls made with them (or with libraries built on them: axios, got, node-fetch, …) inside a trace become spans of kind `http`. Each span records the method, URL (secret-looking query values redacted), request and response headers and bodies (up to 64 KB, then the usual serializer limits and `redactKeys`), status and duration. A 5xx response marks the span as failed.
+
+When the callee runs StackLens too, it links its trace to that span:
+
+1. The caller sends `traceparent: 00-<trace id>-<span id>-01` and `tracestate: stacklens=<application>`.
+2. The callee's middleware records `parent: { traceId, spanId, service }` on its trace and answers with `x-stacklens-trace-id`, which the caller stores as `outbound.childTraceId`.
+3. In the StackLens UI the outgoing call expands into the callee's call tree; the callee's trace shows "Called by …".
+
+Both services keep their own trace ids; the server joins them when the trace is viewed, so they may report in any order (or to different StackLens servers, in which case the UI shows the callee's trace id without the tree). Use `propagateTo` to keep the headers away from third-party APIs, or `propagate: false` to turn them off. Load StackLens before code that keeps its own reference to `http.request` or `fetch`. A runnable demo with an instrumented and an uninstrumented callee: [docs/cross-service-tracing.md](../../docs/cross-service-tracing.md).
 
 ### Loops and large requests
 

@@ -14,7 +14,7 @@ import { validate } from '../../packages/contract/schema/validate.mjs';
 
 const { scenarios } = JSON.parse(readFileSync(new URL('./scenarios.json', import.meta.url), 'utf8'));
 
-export function checkScenario(scenario, trace) {
+export function checkScenario(scenario, trace, child) {
   const errors = validate(trace, 'TraceRecord').map((e) => `contract: ${e}`);
   if (errors.length) return errors;
   const exp = scenario.expect;
@@ -64,6 +64,32 @@ export function checkScenario(scenario, trace) {
     if (total !== expected) errors.push(`${name}: ${total} calls accounted for (individual + collapsed.count), expected ${expected}`);
   }
   if (exp.collapsed && !byName(exp.collapsed).some((s) => s.collapsed)) errors.push(`${exp.collapsed}: no span with "collapsed" set`);
+
+  // cross-service: the caller's outgoing-call span and the callee's trace point at each other
+  const out = spans.filter((s) => s.outbound);
+  if (exp.outbound) {
+    const o = exp.outbound;
+    if (o.count !== undefined && out.length !== o.count) errors.push(`${out.length} outgoing-call spans, expected ${o.count}`);
+    const span = out[0];
+    if (span) {
+      if (span.kind !== 'http') errors.push(`outgoing call: kind ${span.kind}, expected http`);
+      for (const k of ['method', 'statusCode', 'propagated'])
+        if (o[k] !== undefined && span.outbound[k] !== o[k]) errors.push(`outbound.${k} ${span.outbound[k]}, expected ${o[k]}`);
+      if (o.childTraceId && child && span.outbound.childTraceId !== child.id)
+        errors.push(`outbound.childTraceId ${span.outbound.childTraceId}, expected the callee's trace id ${child.id}`);
+    }
+  }
+  if (exp.child) {
+    if (!child) errors.push(`no callee trace (expected under "${scenario.name}.child")`);
+    else {
+      errors.push(...validate(child, 'TraceRecord').map((e) => `callee contract: ${e}`));
+      if (exp.child.parentLinked) {
+        if (child.parent?.traceId !== trace.id) errors.push(`callee parent.traceId ${child.parent?.traceId}, expected ${trace.id}`);
+        if (!out.some((s) => s.id === child.parent?.spanId))
+          errors.push(`callee parent.spanId ${child.parent?.spanId} is not an outgoing-call span of the caller`);
+      }
+    }
+  }
   return errors;
 }
 
@@ -77,7 +103,7 @@ function main() {
   let failed = 0;
   for (const scenario of scenarios) {
     const trace = results[scenario.name];
-    const errors = trace ? checkScenario(scenario, trace) : ['no trace produced'];
+    const errors = trace ? checkScenario(scenario, trace, results[`${scenario.name}.child`]) : ['no trace produced'];
     if (errors.length) failed++;
     console.log(`${errors.length ? '✗' : '✓'} ${scenario.name}`);
     for (const e of errors) console.log(`    ${e}`);

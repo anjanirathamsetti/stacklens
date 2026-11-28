@@ -7,11 +7,13 @@ export type {
   HttpExchange,
   IngestRequest,
   LogLevel,
+  OutboundCall,
   SpanError,
   SpanKind,
   SpanLog,
   SpanRecord,
   SpanStatus,
+  TraceParent,
   TraceRecord,
 } from '@stacklens/types';
 import type { SpanKind, TraceRecord } from '@stacklens/types';
@@ -75,6 +77,21 @@ export interface StackLensOptions {
   ignorePaths?: (string | RegExp)[];
   /** Method names that should never be wrapped */
   ignoreMethods?: (string | RegExp)[];
+  /**
+   * Record outgoing HTTP calls (node `http`/`https`, global `fetch`, and libraries built on them such as
+   * axios) as spans of kind `http`, with method, URL, headers, bodies and status. Default true
+   */
+  captureOutbound?: boolean;
+  /**
+   * Send a W3C `traceparent` header (and `tracestate: stacklens=<application>`) with outgoing HTTP calls,
+   * so an instrumented callee links its trace to the calling span. Default true
+   */
+  propagate?: boolean;
+  /**
+   * Only propagate to these hosts: `"billing.internal"` (exact host, or `host:port`), `".internal"`
+   * (any subdomain) or a RegExp. Default: every host. Set it to keep trace headers away from third parties.
+   */
+  propagateTo?: (string | RegExp)[];
   /** Ms to wait after the response finishes before exporting (lets fire-and-forget work settle). Default 30 */
   settleMs?: number;
   /** Print exporter errors. Default true */

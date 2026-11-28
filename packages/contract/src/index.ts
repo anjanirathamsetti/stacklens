@@ -68,6 +68,35 @@ export interface SpanRecord {
   valuesDropped?: boolean;
   /** Log lines dropped after `maxLogsPerSpan`. */
   droppedLogs?: number;
+  /** Set on a span that stands for an outgoing HTTP call (kind `http`) made inside the trace. */
+  outbound?: OutboundCall;
+}
+
+/**
+ * An outgoing HTTP call (node `http`/`https`, `fetch`, axios, …). When the callee is instrumented too,
+ * its trace carries `parent: { traceId, spanId }` pointing at this span, so the two call trees can be joined.
+ */
+export interface OutboundCall {
+  method: string;
+  /** Absolute URL; query values of secret-looking keys are redacted. */
+  url: string;
+  /** `hostname[:port]` of the callee. */
+  host: string;
+  statusCode?: number;
+  /** A W3C `traceparent` header was sent with the request. */
+  propagated?: boolean;
+  /** Trace id the callee reported back (`x-stacklens-trace-id` response header). */
+  childTraceId?: string;
+}
+
+/** The call that caused this trace in another service (from an incoming W3C `traceparent` header). */
+export interface TraceParent {
+  /** Trace id in the calling service. */
+  traceId: string;
+  /** Id of the outgoing-call span in the calling service. */
+  spanId: string;
+  /** Application name of the caller, when it sent one (`tracestate: stacklens=<name>`). */
+  service?: string;
 }
 
 export interface CollapsedCalls {
@@ -117,6 +146,8 @@ export interface TraceRecord {
   droppedSpans?: number;
   /** Some spans have no arguments/result because the trace hit `maxCaptureBytes`. */
   valuesTruncated?: boolean;
+  /** Set when another instrumented service made the request that started this trace. */
+  parent?: TraceParent;
 }
 
 /** Body of `POST /api/ingest`. A single `TraceRecord` is also accepted. */

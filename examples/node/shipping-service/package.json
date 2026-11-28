@@ -1,0 +1,10 @@
+{
+  "name": "@stacklens-examples/shipping-service",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A plain node:http service WITHOUT StackLens – the uninstrumented callee in the cross-service demo",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  }
+}

@@ -51,6 +51,12 @@ const normal = [
     () => ({ userId: pick([1, 2]), items: [{ sku: 'kb-01', price: 49.5, qty: 1 + Math.floor(Math.random() * 3) }] }),
   ],
   [1, 'GET', `${EXPRESS}/api/orders/2/fail`],
+  // cross-service: orders-api → billing-api (StackLens, linked call trees) + shipping-service (no StackLens)
+  [3, 'POST', `${EXPRESS}/api/checkout/1`, () => ({ items: [{ sku: 'kb-01', price: 49.5, qty: 1 + Math.floor(Math.random() * 3) }] })],
+  [1, 'POST', `${EXPRESS}/api/checkout/2`],
+  [1, 'POST', `${EXPRESS}/api/checkout/42`],
+  [1, 'POST', `${EXPRESS}/api/checkout/1`, () => ({ zip: '00000' })],
+  [1, 'GET', `${EXPRESS}/api/shipping/labels/${rand(100, 999)}`],
   [5, 'GET', `${NEST}/orders/invoice/1`],
   [3, 'GET', `${NEST}/orders/invoice/2`],
   [3, 'GET', `${NEST}/orders/stats`],

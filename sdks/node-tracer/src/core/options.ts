@@ -23,8 +23,13 @@ export const DEFAULT_IGNORE_PATHS: Pattern[] = [/\/favicon\.ico$/, /^\/health/];
 
 /** Fully resolved options – every field has a value. */
 export interface ResolvedOptions extends Required<
-  Omit<StackLensOptions, 'exporter' | 'redactKeys' | 'ignorePaths' | 'ignoreMethods' | 'serviceName' | 'getUserId' | 'apiKey'>
+  Omit<
+    StackLensOptions,
+    'exporter' | 'redactKeys' | 'ignorePaths' | 'ignoreMethods' | 'serviceName' | 'getUserId' | 'apiKey' | 'propagateTo'
+  >
 > {
+  /** `undefined` = propagate to every host */
+  propagateTo?: Pattern[];
   exporter?: (trace: TraceRecord) => void;
   apiKey?: string;
   getUserId: (req: any) => string | number | undefined | null;
@@ -105,6 +110,9 @@ export function resolveOptions(o: StackLensOptions, env: NodeJS.ProcessEnv = pro
     redactKeys: o.redactKeys ?? DEFAULT_REDACT_KEYS,
     ignorePaths: o.ignorePaths ?? DEFAULT_IGNORE_PATHS,
     ignoreMethods: o.ignoreMethods ?? [],
+    captureOutbound: o.captureOutbound ?? envFlag(env.STACKLENS_CAPTURE_OUTBOUND) ?? true,
+    propagate: o.propagate ?? envFlag(env.STACKLENS_PROPAGATE) ?? true,
+    propagateTo: o.propagateTo,
     settleMs: o.settleMs ?? 30,
     debug: o.debug ?? true,
     exporter: o.exporter,
