@@ -7,7 +7,6 @@ import {
   Boxes,
   Braces,
   CheckCircle2,
-  Code2,
   ChevronsDownUp,
   ChevronsUpDown,
   Database,
@@ -41,6 +40,7 @@ import { ResizableAside } from '@/components/layout/resizable-aside';
 import { useFilters } from '@/lib/url-filters';
 import { ancestorsOf, buildTree, callCount, errorOrigins, type SpanNode } from '@stacklens/shared/span-tree';
 import { languageLabel, languageOf } from '@stacklens/shared/language';
+import { LanguageIcon } from '@/components/brand/language-icon';
 import { cn, formatDateTime, formatMs, KIND_META, SEVERITY, severityOf } from '@/lib/utils';
 import { useSettings } from '@/lib/settings-context';
 import { OutcomeBadge } from '@/components/data-display/trace-badges';
@@ -68,6 +68,11 @@ function KV({ title, value }: { title: string; value: unknown }) {
     </div>
   );
 }
+
+const NodeIcon = ({ className }: { className?: string }) => <LanguageIcon language="node" className={cn(className, 'text-[#5FA04E]')} />;
+const PythonIcon = ({ className }: { className?: string }) => (
+  <LanguageIcon language="python" className={cn(className, 'text-[#3776AB] dark:text-[#5a9fd4]')} />
+);
 
 /** `stacklens-python-tracer 0.1.0 · CPython 3.12.4` */
 function sdkTitle(trace: TraceRecord): string | undefined {
@@ -387,7 +392,7 @@ function TraceDetail({ id }: { id: string }) {
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     <Chip icon={Boxes}>{app}</Chip>
                     {(trace.sdk || languageOf(trace) === 'python') && (
-                      <Chip icon={Code2} title={sdkTitle(trace)}>
+                      <Chip icon={languageOf(trace) === 'python' ? PythonIcon : NodeIcon} title={sdkTitle(trace)}>
                         {languageLabel(trace)}
                       </Chip>
                     )}

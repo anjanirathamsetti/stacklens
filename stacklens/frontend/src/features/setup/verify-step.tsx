@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { LanguageTag } from '@/components/data-display/trace-badges';
 import type { TraceSummary } from '@stacklens/shared/api-types';
 
@@ -14,11 +14,14 @@ interface SeenApp {
   lastSeen: number;
 }
 
-/** Apps of this language that sent traces recently, from the latest 200 traces. */
+/**
+ * Apps of this language among the recent traces. Only the Python SDK is sure to report its language:
+ * Node SDK builds from before `sdk.language` send none, so untagged traces count as Node.js.
+ */
 function recentApps(traces: TraceSummary[], language: string): SeenApp[] {
   const apps = new Map<string, SeenApp>();
   for (const t of traces) {
-    if (t.language !== language) continue;
+    if ((t.language ?? 'node') !== language) continue;
     const a = apps.get(t.application) ?? { name: t.application, count: 0, lastSeen: 0 };
     a.count++;
     a.lastSeen = Math.max(a.lastSeen, t.startTime);
@@ -42,7 +45,7 @@ export function VerifyStep({ language, label }: { language: string; label: strin
     const poll = async () => {
       if (!document.hidden) {
         try {
-          const r = await fetch(`/api/traces?limit=200&from=${Date.now() - WINDOW_MIN * 60_000}`, { cache: 'no-store' });
+          const r = await fetch(`/api/traces?limit=500&from=${Date.now() - WINDOW_MIN * 60_000}`, { cache: 'no-store' });
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           const body = (await r.json()) as { traces: TraceSummary[] };
           if (!stopped) setState({ traces: body.traces, at: Date.now() });
@@ -63,14 +66,19 @@ export function VerifyStep({ language, label }: { language: string; label: strin
   if (!apps.length)
     return (
       <div role="status" className="flex items-start gap-3 rounded-lg border border-dashed bg-muted/20 p-4">
-        <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" />
+        {/* a quiet "listening" dot: nothing is loading, the guide is waiting for your app */}
+        <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-muted-foreground/50" />
         <div className="text-sm">
           <div className="font-medium">
-            {state?.failed ? 'Couldn’t check for traces. Trying again…' : `Waiting for a trace from a ${label} app…`}
+            {!state
+              ? 'Checking for recent traces…'
+              : state.failed
+                ? 'Couldn’t check for traces. Trying again…'
+                : `No ${label} traces in the last ${WINDOW_MIN} minutes`}
           </div>
           <div className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-            This updates on its own. If nothing arrives, check the endpoint and, if the server requires one, the API key. The SDK prints a{' '}
-            <code className="font-mono">[stacklens]</code> warning when it can’t send.
+            Send a request to your app and it will show up here, with no need to reload. If it doesn’t, check the endpoint and, if the
+            server requires one, the API key. The SDK prints a <code className="font-mono">[stacklens]</code> warning when it can’t send.
           </div>
         </div>
       </div>

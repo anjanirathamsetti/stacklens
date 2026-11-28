@@ -1,3 +1,4 @@
+import { LanguageIcon } from '@/components/brand/language-icon';
 import { Boxes } from 'lucide-react';
 import { cn, KIND_META, METHOD_COLORS, statusTone } from '@/lib/utils';
 import type { SpanKind } from '@stacklens/shared/api-types';
@@ -94,13 +95,11 @@ export function LanguageTag({ language, className }: { language?: string; classN
     <span
       title={python ? 'Recorded by the Python SDK' : 'Recorded by the Node.js SDK'}
       className={cn(
-        'inline-flex items-center rounded border px-1 py-px font-mono text-[10px] font-medium',
-        python
-          ? 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300'
-          : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+        'inline-flex items-center gap-1 rounded border bg-muted/40 px-1 py-px font-mono text-[10px] font-medium text-foreground/80',
         className,
       )}
     >
+      {(python || language === 'node') && <LanguageIcon language={python ? 'python' : 'node'} className="size-3" />}
       {python ? 'Python' : language === 'node' ? 'Node.js' : language}
     </span>
   );

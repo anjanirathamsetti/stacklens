@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Check, KeyRound, Lightbulb, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { LanguageIcon } from '@/components/brand/language-icon';
 import { CodeBlock } from '@/components/data-display/code-block';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -73,15 +74,8 @@ function LanguagePicker({ current, onPick }: { current: LanguageGuide; onPick: (
               on ? 'border-viz ring-2 ring-viz/25' : 'hover:border-foreground/25',
             )}
           >
-            <span
-              className={cn(
-                'grid size-10 shrink-0 place-items-center rounded-lg font-mono text-sm font-bold',
-                l.id === 'node'
-                  ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300'
-                  : 'bg-sky-500/12 text-sky-700 dark:text-sky-300',
-              )}
-            >
-              {l.id === 'node' ? 'JS' : 'Py'}
+            <span className="grid size-10 shrink-0 place-items-center rounded-lg border bg-muted/40">
+              <LanguageIcon language={l.id} className="size-6" />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-semibold">{l.label}</span>

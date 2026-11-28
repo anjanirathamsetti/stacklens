@@ -58,9 +58,8 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-/** Pinned above the account row: everyone's way into setup and settings (team settings included, for admins). */
+/** Pinned above the signed-in user (team settings included, for admins). Setup, theme and sign out are icons below. */
 export const BOTTOM_LINKS: (NavItem & { shortcut?: string; match: string[] })[] = [
-  { href: '/setup', label: 'Setup guide', icon: BookOpen, match: ['/setup'], keywords: 'install sdk instrument python node' },
   {
     href: '/settings?tab=profile',
     label: 'Settings',

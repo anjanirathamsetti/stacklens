@@ -1,28 +1,10 @@
 'use client';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Suspense, useCallback, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import {
-  Bookmark,
-  ChevronDown,
-  ChevronsUpDown,
-  LogOut,
-  Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Search,
-  Sun,
-  type LucideIcon,
-} from 'lucide-react';
+import { BookOpen, Bookmark, ChevronDown, LogOut, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, type LucideIcon } from 'lucide-react';
 import { LogoMark, Wordmark } from '@/components/brand/logo';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Tooltip } from '@/components/ui/tooltip';
 import { openCommandPalette } from '@/components/layout/command-palette';
 import { BOTTOM_LINKS, NAV_GROUPS, UNFILTERED, isActive, type NavItem } from '@/components/layout/nav-config';
@@ -229,7 +211,7 @@ function PinnedViews({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-/** Setup guide and Settings, pinned above the account row. Settings covers /settings and the team pages under /admin. */
+/** Settings, pinned above the signed-in user. It covers /settings and the team pages under /admin. */
 function BottomLinks({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname();
   return (
@@ -269,33 +251,60 @@ function BottomLinks({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-/** Sun / moon button: switches between the light and dark theme (saved with your settings). */
-function ThemeToggle({ collapsed }: { collapsed: boolean }) {
+const ICON_BUTTON =
+  'grid h-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground cursor-pointer';
+
+/** The icon row at the very bottom: setup guide, light/dark theme and sign out (stacked when collapsed). */
+function FooterIcons({ collapsed }: { collapsed: boolean }) {
+  const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
-  const toggle = () => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
-  // both icons are rendered and swapped by the `dark` class, so server and client markup match
-  const button = (
-    <button
-      onClick={toggle}
-      aria-label="Switch between light and dark theme"
-      className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground cursor-pointer"
-    >
-      <Sun className="hidden size-4 dark:block" />
-      <Moon className="size-4 dark:hidden" />
-    </button>
+  const onSetup = isActive(pathname, '/setup');
+  const size = collapsed ? 'size-9' : 'w-full';
+  const tip = (label: React.ReactNode, child: React.ReactNode) => (
+    <Tooltip content={label} side={collapsed ? 'right' : 'top'}>
+      {child}
+    </Tooltip>
   );
   return (
-    <Tooltip
-      content={
+    <div
+      className={cn(
+        'shrink-0 border-t border-border/70 py-2',
+        collapsed ? 'flex flex-col items-center gap-1' : 'mx-3 grid grid-cols-3 gap-1',
+      )}
+    >
+      {tip(
+        'Setup guide',
+        <Link
+          href="/setup"
+          aria-label="Setup guide"
+          aria-current={onSetup ? 'page' : undefined}
+          className={cn(ICON_BUTTON, size, onSetup && 'bg-brand/12 text-foreground')}
+        >
+          <BookOpen className="size-[18px]" />
+        </Link>,
+      )}
+      {/* both theme icons are rendered and swapped by the `dark` class, so server and client markup match */}
+      {tip(
         <span>
           <span className="dark:hidden">Dark theme</span>
           <span className="hidden dark:inline">Light theme</span>
-        </span>
-      }
-      side={collapsed ? 'right' : 'top'}
-    >
-      {button}
-    </Tooltip>
+        </span>,
+        <button
+          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          aria-label="Switch between light and dark theme"
+          className={cn(ICON_BUTTON, size)}
+        >
+          <Sun className="hidden size-[18px] dark:block" />
+          <Moon className="size-[18px] dark:hidden" />
+        </button>,
+      )}
+      {tip(
+        'Sign out',
+        <button onClick={() => void signOut()} aria-label="Sign out" className={cn(ICON_BUTTON, size)}>
+          <LogOut className="size-[18px]" />
+        </button>,
+      )}
+    </div>
   );
 }
 
@@ -322,64 +331,28 @@ function Nav({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-/**
- * Account button at the bottom of the sidebar: profile, admin and sign-out only.
- * Settings (including the team pages for admins) and the setup guide are the links above it.
- */
-function AccountMenu({ collapsed }: { collapsed: boolean }) {
+/** Who is signed in, and with which role. Profile editing is in Settings. */
+function Identity({ collapsed }: { collapsed: boolean }) {
   const { user } = useCurrentUser();
-  const pathname = usePathname();
   const { name, email } = user;
   const role = ROLE_LABELS[user.role].label;
-  const sp = useSearchParams();
-  const onAccountPage = pathname === '/settings' && (sp.get('tab') ?? 'profile') === 'profile';
-
+  if (collapsed)
+    return (
+      <Tooltip content={`${name} · ${role}`} side="right">
+        <span className="mx-auto block w-fit">
+          <Avatar name={name} className="size-8 text-[11px]" />
+        </span>
+      </Tooltip>
+    );
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        {collapsed ? (
-          <button
-            className={cn(
-              'relative mx-auto rounded-full outline-none ring-offset-2 ring-offset-shell transition hover:ring-2 hover:ring-border focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:ring-2 data-[state=open]:ring-brand/50 cursor-pointer',
-              onAccountPage && 'ring-2 ring-brand/50',
-            )}
-            aria-label="Account menu"
-          >
-            <Avatar name={name} className="size-8 text-[11px]" />
-          </button>
-        ) : (
-          <button
-            className={cn(
-              'group flex w-full items-center gap-2.5 rounded-lg border border-transparent p-1.5 text-left outline-none transition-all cursor-pointer',
-              'hover:border-border hover:bg-background hover:shadow-xs focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:border-border data-[state=open]:bg-background data-[state=open]:shadow-xs',
-              onAccountPage && 'border-border bg-background shadow-xs',
-            )}
-            aria-label="Account menu"
-          >
-            <Avatar name={name} className="size-8 rounded-lg text-[11px]" />
-            <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-sm font-medium">{name}</span>
-              <span className="block truncate text-xs text-muted-foreground">{email || role}</span>
-            </span>
-            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
-          </button>
-        )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="right" align="end" sideOffset={collapsed ? 12 : 10} className="w-60">
-        <div className="flex items-center gap-2.5 px-2 py-2">
-          <Avatar name={name} className="size-9 rounded-lg text-xs" />
-          <div className="min-w-0 leading-tight">
-            <div className="truncate text-sm font-semibold">{name}</div>
-            <div className="truncate text-xs text-muted-foreground">{email}</div>
-          </div>
-          <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{role}</span>
-        </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => void signOut()}>
-          <LogOut /> Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-2.5 px-4 py-2">
+      <Avatar name={name} className="size-8 rounded-lg text-[11px]" />
+      <span className="min-w-0 flex-1 leading-tight">
+        <span className="block truncate text-sm font-medium">{name}</span>
+        <span className="block truncate text-xs text-muted-foreground">{email}</span>
+      </span>
+      <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{role}</span>
+    </div>
   );
 }
 
@@ -450,16 +423,10 @@ export function AppSidebar() {
         <BottomLinks collapsed={collapsed} />
       </Suspense>
 
-      {/* account */}
-      <div className={cn('flex shrink-0 pb-3 pt-1.5', collapsed ? 'flex-col items-center gap-2 px-2' : 'items-center gap-1 px-3')}>
-        {collapsed && <ThemeToggle collapsed />}
-        <div className={cn(!collapsed && 'min-w-0 flex-1')}>
-          <Suspense>
-            <AccountMenu collapsed={collapsed} />
-          </Suspense>
-        </div>
-        {!collapsed && <ThemeToggle collapsed={false} />}
+      <div className={cn('shrink-0', collapsed ? 'py-2' : 'pt-1')}>
+        <Identity collapsed={collapsed} />
       </div>
+      <FooterIcons collapsed={collapsed} />
     </aside>
   );
 }
