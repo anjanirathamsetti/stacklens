@@ -6,6 +6,7 @@ import { PrintTable } from '@/components/print/print-table';
 import { TimeChart } from '@/components/print/print-charts';
 import { globalFilters, MAX_PRINT_ROWS, pageOf, printApiQuery, printShortDateTime, type PrintFilter } from '@/components/print/print-query';
 import { usePrintData } from '@/components/print/use-print-data';
+import { TraceLink } from '@/components/print/trace-link';
 import { C } from '@/components/charts/time-series-charts';
 import { MethodBadge, StatusCodeBadge } from '@/components/data-display/trace-badges';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +51,7 @@ function TracesReportInner() {
 
   const notes = data
     ? [
+        'Trace IDs link to the full trace (call tree, arguments, logs) in StackLens.',
         all
           ? total > traces.length
             ? `First ${traces.length.toLocaleString()} of ${total.toLocaleString()} matching traces (the PDF limit is ${MAX_PRINT_ROWS}). Narrow the filters to export the rest.`
@@ -113,7 +115,7 @@ function TracesReportInner() {
                     {t.url && t.route && t.url !== t.route && (
                       <div className="break-all font-mono text-[9.5px] text-muted-foreground">{t.url}</div>
                     )}
-                    <div className="font-mono text-[9px] text-muted-foreground">{t.id}</div>
+                    <TraceLink id={t.id} className="text-[9px]" />
                   </div>
                 </div>
               ),

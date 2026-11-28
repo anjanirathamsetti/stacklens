@@ -5,6 +5,7 @@ import { PrintDocument, PrintEmpty, PrintSection, PrintStat } from '@/components
 import { PrintTable } from '@/components/print/print-table';
 import { globalFilters, MAX_PRINT_ROWS, printApiQuery, printDateTime, sliceForPrint } from '@/components/print/print-query';
 import { usePrintData } from '@/components/print/use-print-data';
+import { TraceLink } from '@/components/print/trace-link';
 import { PriorityBadge, StateBadge } from '@/features/incidents/components/incident-badges';
 import { cn, SEVERITY } from '@/lib/utils';
 import type { IncidentRow } from '@/features/incidents/incidents-page';
@@ -89,6 +90,11 @@ function IncidentsReportInner() {
                   <>
                     <div className={cn('break-all font-mono', SEVERITY[r.error.severity].text)}>{r.error.name}</div>
                     <div className="break-all font-mono text-[9.5px] text-muted-foreground">{r.error.spanName}</div>
+                    {r.lastTraceId && (
+                      <div className="text-[9.5px] text-muted-foreground">
+                        latest <TraceLink id={r.lastTraceId} />
+                      </div>
+                    )}
                   </>
                 ) : (
                   <span className="text-muted-foreground">{r.errorId ? 'no occurrences in range' : '—'}</span>

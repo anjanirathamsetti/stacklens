@@ -6,6 +6,7 @@ import { PrintTable } from '@/components/print/print-table';
 import { MiniBars } from '@/components/print/print-charts';
 import { globalFilters, printApiQuery, printShortDateTime, sliceForPrint } from '@/components/print/print-query';
 import { usePrintData } from '@/components/print/use-print-data';
+import { TraceLink } from '@/components/print/trace-link';
 import { KindBadge } from '@/components/data-display/trace-badges';
 import { IncidentChip } from '@/features/incidents/components/incident-badges';
 import { cn, SEVERITY } from '@/lib/utils';
@@ -64,6 +65,9 @@ function ErrorsReportInner() {
                     <div className="mt-0.5 break-words">{g.message}</div>
                     <div className="mt-0.5 break-all font-mono text-[9.5px] text-muted-foreground">
                       {[...g.routes.slice(0, 3), ...g.applications].join(' · ')}
+                    </div>
+                    <div className="text-[9.5px] text-muted-foreground">
+                      sample trace <TraceLink id={g.sampleTraceId} />
                     </div>
                   </>
                 );

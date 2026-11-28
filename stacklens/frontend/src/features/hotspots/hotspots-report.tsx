@@ -6,6 +6,7 @@ import { PrintTable } from '@/components/print/print-table';
 import { ShareBar } from '@/components/print/print-charts';
 import { globalFilters, printApiQuery, sliceForPrint } from '@/components/print/print-query';
 import { usePrintData } from '@/components/print/use-print-data';
+import { TraceLink } from '@/components/print/trace-link';
 import { KindBadge } from '@/components/data-display/trace-badges';
 import { cn, formatMs, KIND_META } from '@/lib/utils';
 import type { Hotspot, SpanKind } from '@stacklens/shared/api-types';
@@ -54,6 +55,9 @@ function HotspotsReportInner() {
                   <div className="text-[9.5px] text-muted-foreground">
                     in {h.traces} trace{h.traces === 1 ? '' : 's'}
                     {h.async ? ' · async' : ''}
+                  </div>
+                  <div className="text-[9.5px] text-muted-foreground">
+                    latest <TraceLink id={h.lastTraceId} />
                   </div>
                 </>
               ),
