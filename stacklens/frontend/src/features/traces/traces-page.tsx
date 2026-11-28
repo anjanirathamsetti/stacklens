@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Input, Select } from '@/components/ui/input';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useLive } from '@/components/layout/providers';
-import { AppBadge, MethodBadge, StatusCodeBadge } from '@/components/data-display/trace-badges';
+import { AppBadge, LanguageTag, MethodBadge, StatusCodeBadge } from '@/components/data-display/trace-badges';
 import { TraceSheet } from '@/features/traces/components/trace-sheet';
 import { useSettings } from '@/lib/settings-context';
 import { VolumeChart } from '@/components/charts/time-series-charts';
@@ -406,7 +406,10 @@ function TracesInner() {
                     </td>
                     <td className="whitespace-nowrap px-4 py-2.5">
                       <AppBadge name={t.application} />
-                      <div className="mt-1 text-[11px] text-muted-foreground">{t.project}</div>
+                      <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        {t.project}
+                        <LanguageTag language={t.language} />
+                      </div>
                     </td>
                   </tr>
                 ))}

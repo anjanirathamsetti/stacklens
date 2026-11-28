@@ -85,3 +85,23 @@ export function KindLegend() {
     </div>
   );
 }
+
+/** Small language tag for traces whose SDK said which language it is (`trace.sdk.language`). */
+export function LanguageTag({ language, className }: { language?: string; className?: string }) {
+  if (!language) return null;
+  const python = language === 'python';
+  return (
+    <span
+      title={python ? 'Recorded by the Python SDK' : 'Recorded by the Node.js SDK'}
+      className={cn(
+        'inline-flex items-center rounded border px-1 py-px font-mono text-[10px] font-medium',
+        python
+          ? 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300'
+          : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+        className,
+      )}
+    >
+      {python ? 'Python' : language === 'node' ? 'Node.js' : language}
+    </span>
+  );
+}

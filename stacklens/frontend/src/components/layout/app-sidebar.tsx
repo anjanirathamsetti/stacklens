@@ -1,18 +1,16 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import {
-  BookOpen,
   Bookmark,
   ChevronDown,
+  ChevronRight,
   ChevronsUpDown,
-  Keyboard,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  Settings,
   Shield,
   User,
   type LucideIcon,
@@ -27,7 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip } from '@/components/ui/tooltip';
 import { openCommandPalette } from '@/components/layout/command-palette';
-import { ADMIN_ITEM, NAV_GROUPS, UNFILTERED, isActive, type NavItem } from '@/components/layout/nav-config';
+import { NAV_GROUPS, UNFILTERED, WORKSPACE_GROUP, isActive, type NavItem, type WorkspaceItem } from '@/components/layout/nav-config';
 import { useFilters } from '@/lib/url-filters';
 import { normalizeQuery, useSavedViews } from '@/lib/saved-views';
 import { initials, useSettings } from '@/lib/settings-context';
@@ -231,9 +229,117 @@ function PinnedViews({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+const linkClass = (active: boolean, collapsed: boolean, size: 'h-8' | 'h-7' = 'h-8') =>
+  cn(
+    'group relative flex items-center rounded-md text-sm transition-colors',
+    collapsed ? 'mx-auto size-9 justify-center' : `${size} gap-2.5 px-2.5`,
+    active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+  );
+
+/** Is this Workspace entry (or one of its sub-pages) the current page? */
+function useWorkspaceMatch() {
+  const pathname = usePathname();
+  const tab = useSearchParams().get('tab') ?? 'profile';
+  const self = (i: WorkspaceItem) => (i.tabs ? pathname === '/settings' && i.tabs.includes(tab) : isActive(pathname, i.href.split('?')[0]));
+  const child = (c: NonNullable<WorkspaceItem['children']>[number]) =>
+    c.tab ? pathname === '/settings' && tab === c.tab : isActive(pathname, c.href);
+  return { self, child };
+}
+
+/** One Workspace entry; Settings and Admin unfold into their sub-pages (open while you're on one). */
+function WorkspaceLink({ item, collapsed }: { item: WorkspaceItem; collapsed: boolean }) {
+  const match = useWorkspaceMatch();
+  const active = match.self(item);
+  const [open, setOpen] = useState(active);
+  // unfold when navigating into the section, fold again when leaving it (the chevron toggles in between)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setOpen(active), [active]);
+  const Icon = item.icon;
+  const hasChildren = !!item.children?.length && !collapsed;
+  const link = (
+    <Link
+      href={item.href}
+      aria-label={item.label}
+      aria-current={active && !hasChildren ? 'page' : undefined}
+      className={cn(linkClass(active && !hasChildren, collapsed), hasChildren && active && 'text-foreground', hasChildren && 'pr-8')}
+    >
+      {!collapsed && active && !hasChildren && <span className="absolute -left-[13px] top-1.5 bottom-1.5 w-px bg-brand" />}
+      <Icon className={cn('size-4 shrink-0', hasChildren && active && 'text-brand')} />
+      {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+      {!collapsed && item.shortcut && !hasChildren && (
+        <kbd className="font-mono text-[10px] text-muted-foreground/70 opacity-0 transition-opacity group-hover:opacity-100">
+          {item.shortcut}
+        </kbd>
+      )}
+    </Link>
+  );
+  if (collapsed)
+    return (
+      <Tooltip content={item.shortcut ? `${item.label} (${item.shortcut})` : item.label} side="right">
+        {link}
+      </Tooltip>
+    );
+  if (!hasChildren) return link;
+  return (
+    <div>
+      <div className="relative">
+        {link}
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={`${open ? 'Hide' : 'Show'} ${item.label} pages`}
+          className="absolute right-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded text-muted-foreground/70 hover:bg-accent hover:text-foreground cursor-pointer"
+        >
+          <ChevronRight className={cn('size-3.5 transition-transform duration-200', open && 'rotate-90')} />
+        </button>
+      </div>
+      <div className={cn('grid transition-[grid-template-rows] duration-200 ease-out', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+        <div className="overflow-hidden">
+          <div className="ml-[17px] mt-0.5 space-y-0.5 border-l border-border pl-2.5">
+            {item.children!.map((c) => {
+              const on = match.child(c);
+              const CIcon = c.icon;
+              return (
+                <Link
+                  key={c.href}
+                  href={c.href}
+                  aria-current={on ? 'page' : undefined}
+                  className={cn(linkClass(on, false, 'h-7'), 'text-[13px]')}
+                >
+                  {on && <span className="absolute -left-[11px] top-1 bottom-1 w-px bg-brand" />}
+                  <CIcon className="size-3.5 shrink-0" />
+                  <span className="truncate">{c.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkspaceSection({ collapsed }: { collapsed: boolean }) {
+  const { can } = useCurrentUser();
+  const match = useWorkspaceMatch();
+  const items = WORKSPACE_GROUP.items.filter((i) => !i.adminOnly || can('admin'));
+  return (
+    <NavSection
+      id={WORKSPACE_GROUP.id}
+      label={WORKSPACE_GROUP.label}
+      icon={WORKSPACE_GROUP.icon}
+      containsActive={items.some((i) => match.self(i))}
+      collapsed={collapsed}
+    >
+      {items.map((i) => (
+        <WorkspaceLink key={i.href} item={i} collapsed={collapsed} />
+      ))}
+    </NavSection>
+  );
+}
+
 function Nav({ collapsed }: { collapsed: boolean }) {
   const pathname = usePathname();
-  const { can } = useCurrentUser();
   return (
     <nav className={cn('flex-1 overflow-y-auto overflow-x-hidden pb-3', collapsed ? 'space-y-2 px-2' : 'space-y-1.5 px-3')}>
       {NAV_GROUPS.map((g) => (
@@ -250,19 +356,15 @@ function Nav({ collapsed }: { collapsed: boolean }) {
           ))}
         </NavSection>
       ))}
+      <WorkspaceSection collapsed={collapsed} />
       <PinnedViews collapsed={collapsed} />
-      {can('admin') && (
-        <div className={cn(collapsed && 'border-t border-border/60 pt-2')}>
-          <NavLink item={ADMIN_ITEM} collapsed={collapsed} />
-        </div>
-      )}
     </nav>
   );
 }
 
 /**
  * Account button at the bottom of the sidebar: profile, admin and sign-out only.
- * Settings, the setup guide and shortcuts are sidebar links (see FooterLinks).
+ * Settings, the setup guide, shortcuts and admin pages are in the Workspace group.
  */
 function AccountMenu({ collapsed }: { collapsed: boolean }) {
   const { user, can } = useCurrentUser();
@@ -331,73 +433,6 @@ function AccountMenu({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-/** Links every user needs, pinned above the account button. */
-const FOOTER_LINKS: { href: string; label: string; icon: LucideIcon; tab?: string; shortcut?: string }[] = [
-  { href: '/setup', label: 'Setup guide', icon: BookOpen },
-  { href: '/settings?tab=shortcuts', label: 'Keyboard shortcuts', icon: Keyboard, tab: 'shortcuts', shortcut: '?' },
-  { href: '/settings?tab=appearance', label: 'Settings', icon: Settings, tab: 'settings', shortcut: '⌘,' },
-];
-
-function FooterLinks({ collapsed }: { collapsed: boolean }) {
-  const pathname = usePathname();
-  const sp = useSearchParams();
-  const router = useRouter();
-  const tab = sp.get('tab') ?? 'profile';
-
-  // ⌘, opens Settings (the conventional preferences shortcut)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
-        e.preventDefault();
-        router.push('/settings?tab=appearance');
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [router]);
-
-  const activeOf = (l: (typeof FOOTER_LINKS)[number]) =>
-    l.href === '/setup'
-      ? pathname.startsWith('/setup')
-      : pathname === '/settings' && (l.tab === 'shortcuts' ? tab === 'shortcuts' : tab !== 'shortcuts' && tab !== 'profile');
-
-  return (
-    <div className={cn('space-y-0.5 border-t border-border/70 pt-2', collapsed ? 'px-2' : 'px-3')}>
-      {FOOTER_LINKS.map((l) => {
-        const active = activeOf(l);
-        const link = (
-          <Link
-            key={l.href}
-            href={l.href}
-            aria-label={l.label}
-            aria-current={active ? 'page' : undefined}
-            className={cn(
-              'group flex items-center rounded-md text-sm transition-colors',
-              collapsed ? 'mx-auto size-9 justify-center' : 'h-8 gap-2.5 px-2.5',
-              active ? 'bg-brand/12 font-medium text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
-            )}
-          >
-            <l.icon className="size-4 shrink-0" />
-            {!collapsed && <span className="flex-1 truncate">{l.label}</span>}
-            {!collapsed && l.shortcut && (
-              <kbd className="font-mono text-[10px] text-muted-foreground/70 opacity-0 transition-opacity group-hover:opacity-100">
-                {l.shortcut}
-              </kbd>
-            )}
-          </Link>
-        );
-        return collapsed ? (
-          <Tooltip key={l.href} content={l.shortcut ? `${l.label} (${l.shortcut})` : l.label} side="right">
-            {link}
-          </Tooltip>
-        ) : (
-          link
-        );
-      })}
-    </div>
-  );
-}
-
 /* --------------------------------- sidebar --------------------------------- */
 
 export function AppSidebar() {
@@ -408,6 +443,11 @@ export function AppSidebar() {
       const el = e.target as HTMLElement;
       if (e.key === '?' && !e.metaKey && !e.ctrlKey && !el?.closest('input,textarea,[contenteditable="true"]'))
         router.push('/settings?tab=shortcuts');
+      // ⌘, opens Settings (the conventional preferences shortcut)
+      if ((e.metaKey || e.ctrlKey) && e.key === ',') {
+        e.preventDefault();
+        router.push('/settings?tab=appearance');
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -456,12 +496,8 @@ export function AppSidebar() {
         <Nav collapsed={collapsed} />
       </Suspense>
 
-      <Suspense>
-        <FooterLinks collapsed={collapsed} />
-      </Suspense>
-
       {/* account */}
-      <div className={cn('shrink-0 pb-3 pt-2', collapsed ? 'flex justify-center px-2' : 'px-3')}>
+      <div className={cn('shrink-0 border-t border-border/70 pb-3 pt-2', collapsed ? 'flex justify-center px-2' : 'px-3')}>
         <Suspense>
           <AccountMenu collapsed={collapsed} />
         </Suspense>
