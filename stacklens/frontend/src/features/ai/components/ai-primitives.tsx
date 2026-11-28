@@ -14,7 +14,7 @@ export function AiMark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        'grid size-6 shrink-0 place-items-center rounded-md bg-gradient-to-br from-violet-500/15 to-brand/15 text-violet-600 dark:text-violet-300',
+        'grid size-6 shrink-0 place-items-center rounded-md bg-gradient-to-br from-violet-500/15 to-viz/15 text-violet-600 dark:text-violet-300',
         className,
       )}
     >
@@ -27,7 +27,7 @@ export function AiBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-violet-500/12 to-brand/12 px-1.5 py-0.5 text-[10.5px] font-semibold text-violet-700 dark:text-violet-300',
+        'inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-violet-500/12 to-viz/12 px-1.5 py-0.5 text-[10.5px] font-semibold text-violet-700 dark:text-violet-300',
         className,
       )}
     >
@@ -128,7 +128,7 @@ export function AiPanel({
           )}
           <Button
             size="sm"
-            className="bg-gradient-to-r from-violet-600 to-brand text-white hover:opacity-90"
+            className="bg-gradient-to-r from-violet-600 to-viz text-white hover:opacity-90"
             onClick={() => setTried(true)}
             disabled={state !== 'preview'}
             title={state !== 'preview' ? reason : undefined}

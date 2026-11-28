@@ -36,7 +36,7 @@ function Meter({ label, value, max, hint }: { label: string; value: number; max:
         </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <div className={cn('h-full rounded-full transition-all', p > 90 ? 'bg-amber-400' : 'bg-brand')} style={{ width: `${p}%` }} />
+        <div className={cn('h-full rounded-full transition-all', p > 90 ? 'bg-amber-400' : 'bg-viz')} style={{ width: `${p}%` }} />
       </div>
       {hint && <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>}
     </div>

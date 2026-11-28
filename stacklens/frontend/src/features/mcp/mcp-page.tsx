@@ -151,7 +151,7 @@ function McpInner() {
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl space-y-4 p-6">
           <Card className="overflow-hidden">
-            <div className="flex flex-wrap items-center gap-5 bg-gradient-to-br from-brand/[0.07] via-transparent to-violet-500/[0.05] p-6">
+            <div className="flex flex-wrap items-center gap-5 bg-gradient-to-br from-viz/[0.07] via-transparent to-violet-500/[0.05] p-6">
               <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
                 <Cable className="size-6" />
               </div>
