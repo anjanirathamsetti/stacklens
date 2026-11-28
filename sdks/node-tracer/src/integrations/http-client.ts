@@ -1,6 +1,7 @@
 import http from 'node:http';
 import https from 'node:https';
 import { syncBuiltinESMExports } from 'node:module';
+import zlib from 'node:zlib';
 import { performance } from 'node:perf_hooks';
 import { originalConsole } from '../core/console';
 import { traceContext, type TraceContext } from '../core/context';
@@ -194,11 +195,36 @@ class BodyBuffer {
   }
   value(contentType: unknown, contentEncoding: unknown): unknown {
     if (!this.size) return undefined;
-    const enc = headerValue(contentEncoding);
-    if (enc && enc !== 'identity') return `[${enc} body, ${this.size} bytes]`;
     const type = headerValue(contentType);
     if (type && !TEXTUAL.test(type)) return `[${type.split(';')[0]} body, ${this.size} bytes]`;
-    return decodeText(Buffer.concat(this.chunks).toString('utf8'), type, this.overflow, this.size);
+    let buf: Buffer = Buffer.concat(this.chunks);
+    const enc = headerValue(contentEncoding)?.toLowerCase();
+    if (enc && enc !== 'identity') {
+      // the bytes on the wire are compressed: inflate (bounded) what we have, if we have all of it
+      const inflated = this.overflow ? undefined : inflate(buf, enc);
+      if (!inflated) return `[${enc} body, ${this.size} bytes]`;
+      buf = inflated.buf;
+      if (inflated.truncated) return `${buf.toString('utf8')}… [${enc}, ${this.size} bytes compressed]`;
+    }
+    return decodeText(buf.toString('utf8'), type, this.overflow, this.size);
+  }
+}
+
+function inflate(buf: Buffer, enc: string): { buf: Buffer; truncated: boolean } | undefined {
+  const opts = { maxOutputLength: MAX_BODY_BYTES * 4, finishFlush: zlib.constants.Z_SYNC_FLUSH };
+  try {
+    const out =
+      enc === 'gzip' || enc === 'x-gzip'
+        ? zlib.gunzipSync(buf, opts)
+        : enc === 'deflate'
+          ? zlib.inflateSync(buf, opts)
+          : enc === 'br'
+            ? zlib.brotliDecompressSync(buf, { maxOutputLength: MAX_BODY_BYTES * 4 })
+            : undefined;
+    if (!out) return undefined;
+    return out.length > MAX_BODY_BYTES ? { buf: out.subarray(0, MAX_BODY_BYTES), truncated: true } : { buf: out, truncated: false };
+  } catch {
+    return undefined; // corrupt, or larger than maxOutputLength
   }
 }
 
@@ -309,17 +335,24 @@ function observeClientRequest(req: http.ClientRequest, call: Outgoing): void {
     } catch {
       headers = undefined;
     }
-    return { method: call.method, url: call.url, headers, body: reqBody.value(req.getHeader?.('content-type'), undefined) };
+    return {
+      method: call.method,
+      url: call.url,
+      headers,
+      body: reqBody.value(req.getHeader?.('content-type'), req.getHeader?.('content-encoding')),
+    };
   };
 
   let response: http.IncomingMessage | undefined;
+  // snapshot: clients edit res.headers afterwards (axios drops content-encoding once it inflates)
+  let resHeaders: http.IncomingHttpHeaders | undefined;
   const resBody = new BodyBuffer();
   const done = (error?: unknown) =>
     finish(call, {
       request: request(),
       statusCode: response?.statusCode,
-      headers: response?.headers,
-      body: response ? resBody.value(response.headers['content-type'], response.headers['content-encoding']) : undefined,
+      headers: resHeaders,
+      body: resHeaders ? resBody.value(resHeaders['content-type'], resHeaders['content-encoding']) : undefined,
       error,
     });
 
@@ -328,6 +361,7 @@ function observeClientRequest(req: http.ClientRequest, call: Outgoing): void {
     guard('emit', () => {
       if (event === 'response') {
         response = a[0] as http.IncomingMessage;
+        resHeaders = { ...response.headers };
         observeResponse(response, resBody, done);
       } else if (event === 'error') done(a[0]);
       else if (event === 'close' && !response) done(new Error('socket closed before a response arrived'));
@@ -363,11 +397,17 @@ function fetchTarget(input: unknown, init: RequestInit | undefined): Target {
   return { method, url: new URL(href) };
 }
 
-function fetchBody(body: unknown): unknown {
+function fetchBody(body: unknown, headers: Headers): unknown {
   if (body === undefined || body === null) return undefined;
-  if (typeof body === 'string') return decodeText(body.slice(0, MAX_BODY_BYTES), undefined, body.length > MAX_BODY_BYTES, body.length);
+  const type = headers.get('content-type') ?? undefined;
+  if (typeof body === 'string') return decodeText(body.slice(0, MAX_BODY_BYTES), type, body.length > MAX_BODY_BYTES, body.length);
   if (body instanceof URLSearchParams) return body.toString();
-  if (body instanceof Uint8Array || body instanceof ArrayBuffer) return `[binary body, ${body.byteLength} bytes]`;
+  if (body instanceof Uint8Array || body instanceof ArrayBuffer) {
+    const b = new BodyBuffer();
+    b.add(body instanceof ArrayBuffer ? new Uint8Array(body) : body);
+    return b.value(type ?? 'application/octet-stream', headers.get('content-encoding'));
+  }
+  // streams, Blobs and FormData are sent as they are; reading them here would consume them
   return `[${(body as object).constructor?.name ?? 'stream'} body]`;
 }
 
@@ -385,7 +425,7 @@ export function wrapFetch(orig: typeof fetch): typeof fetch {
       headers = new Headers(base as ConstructorParameters<typeof Headers>[0]);
       call = begin(ctx, t, headers.has('traceparent'));
       for (const [k, v] of Object.entries(call.inject ?? {})) if (!headers.has(k)) headers.set(k, v);
-      request = { method: t.method, url: call.url, headers: Object.fromEntries(headers), body: fetchBody(init?.body) };
+      request = { method: t.method, url: call.url, headers: Object.fromEntries(headers), body: fetchBody(init?.body, headers) };
     });
     if (!call || !request) return orig.call(this, input, init);
     const c = call;
@@ -417,38 +457,95 @@ export function wrapFetch(orig: typeof fetch): typeof fetch {
 }
 
 /**
- * Attach the response body when the caller reads it with `json()` / `text()` (the body stream is
- * never read or teed by us), and extend the span to the moment it was read.
+ * Attach the response body once the caller reads it – with `json()`, `text()`, `arrayBuffer()`,
+ * `bytes()`, `blob()` or by streaming `res.body` – and extend the span to the moment it was read.
+ * We never read, tee or buffer the body ourselves: a body the app doesn't read isn't captured,
+ * and one it streams is copied chunk by chunk (up to the body limit) as the app pulls it.
  */
 function captureFetchBody(res: Response, call: Outgoing, span: SpanRecord): void {
   const trace = call.ctx.trace;
-  for (const method of ['json', 'text'] as const) {
-    const orig = res[method];
+  const type = res.headers.get('content-type') ?? undefined;
+  let attached = false;
+  const attach = (value: () => unknown) =>
+    guard('fetch body', () => {
+      if (attached || trace.finished) return;
+      attached = true;
+      const v = value();
+      const captured = v === undefined ? undefined : tracer.captureLate(trace, span, v);
+      if (captured !== undefined && span.result && typeof span.result === 'object')
+        (span.result as Record<string, unknown>).body = captured;
+      span.duration = Math.max(span.duration, performance.now() - trace.t0 - span.start);
+    });
+  // fetch has already inflated the body, so content-encoding no longer applies to what the app reads
+  const fromBytes = (bytes: Uint8Array) => {
+    const b = new BodyBuffer();
+    b.add(bytes);
+    return b.value(type, undefined);
+  };
+  const readers: Record<string, (v: any) => unknown> = {
+    json: (v) => v,
+    text: (v) => decodeText(String(v), type, false, 0),
+    arrayBuffer: (v: ArrayBuffer) => fromBytes(new Uint8Array(v)),
+    bytes: (v: Uint8Array) => fromBytes(v),
+    blob: (v: Blob) => `[${v.type || 'binary'} body, ${v.size} bytes]`,
+    formData: () => '[form data body]',
+  };
+  for (const [method, toValue] of Object.entries(readers)) {
+    const orig = (res as any)[method];
     if (typeof orig !== 'function') continue;
     Object.defineProperty(res, method, {
       configurable: true,
       writable: true,
-      value: function (this: Response) {
-        const p = (orig as () => Promise<unknown>).call(this);
+      value: function (this: Response, ...args: unknown[]) {
+        const p = orig.apply(this, args) as Promise<unknown>;
         p.then(
-          (body) =>
-            guard('fetch body', () => {
-              if (trace.finished) return;
-              const value = tracer.captureLate(
-                trace,
-                span,
-                method === 'text' ? decodeText(String(body), res.headers.get('content-type') ?? undefined, false, 0) : body,
-              );
-              if (value !== undefined && span.result && typeof span.result === 'object')
-                (span.result as Record<string, unknown>).body = value;
-              span.duration = Math.max(span.duration, performance.now() - trace.t0 - span.start);
-            }),
+          (v) => attach(() => toValue(v)),
           () => {},
         );
         return p;
       },
     });
   }
+  // res.body: hand out a stream that pulls from the real one only when the app reads it, so merely
+  // touching `res.body` (or never reading it) leaves the response exactly as it was
+  const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(res), 'body');
+  if (!desc?.get) return;
+  let wrapped: ReadableStream<Uint8Array> | null | undefined;
+  Object.defineProperty(res, 'body', {
+    configurable: true,
+    get(this: Response) {
+      if (wrapped !== undefined) return wrapped;
+      const source = desc.get!.call(this) as ReadableStream<Uint8Array> | null;
+      if (!source) return (wrapped = source);
+      const buf = new BodyBuffer();
+      let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+      wrapped = new ReadableStream<Uint8Array>(
+        {
+          async pull(controller) {
+            reader ??= source.getReader();
+            try {
+              const { done, value } = await reader.read();
+              if (done) {
+                attach(() => buf.value(type, undefined));
+                controller.close();
+                return;
+              }
+              guard('fetch stream', () => buf.add(value));
+              controller.enqueue(value);
+            } catch (e) {
+              controller.error(e);
+            }
+          },
+          cancel(reason) {
+            attach(() => buf.value(type, undefined));
+            return reader ? reader.cancel(reason) : source.cancel(reason);
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      return wrapped;
+    },
+  });
 }
 
 /* ------------------------------------------------------------------ */

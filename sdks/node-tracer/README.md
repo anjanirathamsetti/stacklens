@@ -81,7 +81,7 @@ When the callee runs StackLens too, it links its trace to that span:
 2. The callee's middleware records `parent: { traceId, spanId, service }` on its trace and answers with `x-stacklens-trace-id`, which the caller stores as `outbound.childTraceId`.
 3. In the StackLens UI the outgoing call expands into the callee's call tree; the callee's trace shows "Called by …".
 
-Both services keep their own trace ids; the server joins them when the trace is viewed, so they may report in any order (or to different StackLens servers, in which case the UI shows the callee's trace id without the tree). Use `propagateTo` to keep the headers away from third-party APIs, or `propagate: false` to turn them off. Load StackLens before code that keeps its own reference to `http.request` or `fetch`.
+Both services keep their own trace ids; the server joins them when the trace is viewed, so they may report in any order (or to different StackLens servers, in which case the UI shows the callee's trace id without the tree). Use `propagateTo` to keep the headers away from third-party APIs, or `propagate: false` to turn them off. Load StackLens before code that keeps its own reference to `http.request` or `fetch`. A runnable demo with an instrumented and an uninstrumented callee: [docs/cross-service-tracing.md](../../docs/cross-service-tracing.md).
 
 ### Loops and large requests
 

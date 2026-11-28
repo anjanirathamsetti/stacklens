@@ -1,7 +1,7 @@
 {
   "name": "@stacklens/node-tracer",
   "version": "0.1.0",
-  "description": "Drop-in call-tree tracing for Node.js backends \u2013 NestJS, Express and TypeORM",
+  "description": "Drop-in call-tree tracing for Node.js backends – NestJS, Express and TypeORM",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -59,6 +59,7 @@
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
+    "axios": "^1.21.1",
     "express": "^4.21.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.0",

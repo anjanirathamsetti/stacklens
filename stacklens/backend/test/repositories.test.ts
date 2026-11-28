@@ -196,6 +196,13 @@ describe.each(backends)('$name', ({ setup, notify }) => {
       // malformed parents are ignored, unknown traces are undefined
       expect((await getTraceLinks(bogus.id))?.parent).toBeUndefined();
       expect(await getTraceLinks('nope')).toBeUndefined();
+      // outgoing-call summary on the list, and the "calls other services" filter
+      const external = (await pageTraces({ external: true })).traces;
+      expect(external.map((t) => t.id)).toEqual([parent.id]);
+      expect(external[0]).toMatchObject({ outboundCount: 3, outboundHosts: ['billing:3002', 'search', 'far'], linkedChildren: 1 });
+      const plain = (await pageTraces({ application: 'billing-api' })).traces[0];
+      expect(plain.outboundCount).toBeUndefined();
+      expect(plain.linkedChildren).toBeUndefined();
       // the summary list carries the parent too
       expect((await pageTraces({ application: 'billing-api' })).traces[0].parent).toMatchObject({ traceId: parent.id, spanId: 'out1' });
     });

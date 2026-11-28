@@ -13,6 +13,8 @@ r.post('/orders', (req, res, next) => orderController.create(req, res).catch(nex
 r.get('/orders/:id/fail', (req, res, next) => orderController.fail(req, res).catch(next));
 // cross-service: calls the NestJS example (billing-api) over HTTP
 r.post('/checkout/:userId', (req, res, next) => checkoutController.checkout(req, res).catch(next));
+// calls shipping-service, which does not run StackLens (streamed response body)
+r.get('/shipping/labels/:orderId', (req, res, next) => checkoutController.label(req, res).catch(next));
 
 // Heavy endpoints for trying StackLens on big call trees (see src/lab)
 r.get('/lab/catalog-sync', (req, res, next) => labController.catalogSync(req, res).catch(next));

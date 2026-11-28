@@ -52,6 +52,12 @@ export interface TraceSummary {
   hasPayload?: boolean;
   /** the outgoing call in another service that caused this trace */
   parent?: TraceParent;
+  /** outgoing HTTP calls the request made (including ones folded into repeated-call rows) */
+  outboundCount?: number;
+  /** distinct hosts those calls went to (first 10) */
+  outboundHosts?: string[];
+  /** traces of called services stored on this server that link back to this trace */
+  linkedChildren?: number;
 }
 
 /** `GET /api/traces/:id/links` – how a trace connects to traces of other services. */

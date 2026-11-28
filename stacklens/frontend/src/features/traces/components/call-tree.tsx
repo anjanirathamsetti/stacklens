@@ -6,7 +6,7 @@ import { cn, formatMs, KIND_META, SEVERITY, severityOf } from '@/lib/utils';
 import { busyTime, flatten, type SpanNode } from '@stacklens/shared/span-tree';
 import { sqlSummary } from '@stacklens/shared/sql-format';
 import type { SpanKind } from '@stacklens/shared/api-types';
-import { RemoteChip, RemoteServiceTag, type RemoteLink } from './remote-calls';
+import { NoCallGraphChip, RemoteChip, RemoteServiceTag, type RemoteLink } from './remote-calls';
 
 export const KIND_SHORT: Record<SpanKind, string> = {
   http: 'HTTP',
@@ -42,6 +42,7 @@ export function CallTree({
   filter,
   errorOrigins,
   remote,
+  noGraph,
   onToggleRemote,
 }: {
   roots: SpanNode[];
@@ -56,6 +57,8 @@ export function CallTree({
   /** outgoing calls to other instrumented services, by span id */
   remote?: Map<string, RemoteLink>;
   onToggleRemote?: (spanId: string) => void;
+  /** outgoing calls whose callee doesn't report to StackLens (span id → host) */
+  noGraph?: Map<string, string>;
 }) {
   const rows = useMemo(() => flatten(roots, collapsed), [roots, collapsed]);
   const order = useMemo(() => {
@@ -317,6 +320,7 @@ export function CallTree({
                 <span className="ml-2 flex shrink-0 items-center gap-1">
                   {n.remote?.root && <RemoteServiceTag mark={n.remote} />}
                   {link && <RemoteChip link={link} onToggle={() => onToggleRemote?.(n.id)} />}
+                  {!link && noGraph?.has(n.id) && <NoCallGraphChip host={noGraph.get(n.id)!} />}
                   {isErr &&
                     S &&
                     (origin ? (

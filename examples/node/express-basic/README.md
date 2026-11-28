@@ -12,14 +12,16 @@ curl localhost:3001/api/users/1
 curl localhost:3001/api/orders/2/fail   # a traced 500
 ```
 
-## Calling another service
+## Calling other services
 
-`POST /api/checkout/:userId` calls the NestJS example (`billing-api`, port 3002, override with `BILLING_URL`): a `fetch` GET for the invoice and a `node:http` POST (what axios does in Node) to create the order. Both apps run StackLens, so the outgoing calls carry a W3C `traceparent` header and, in the trace view, each outgoing call expands into billing-api's own call tree.
+`POST /api/checkout/:userId` calls two services:
 
-```bash
-npm run example:nest      # in another terminal
-curl -X POST localhost:3001/api/checkout/1
-```
+- the NestJS example (`billing-api`, port 3002, `BILLING_URL`), which runs StackLens: a `fetch` GET for the invoice and a `node:http` POST for the order. In the trace view these calls expand into billing-api's own call tree.
+- `shipping-service` (port 3003, `SHIPPING_URL`), which doesn't: an axios POST for a quote. StackLens records the request and response and shows "Call graph not available".
+
+`GET /api/shipping/labels/:orderId` streams a label from shipping-service with `fetch`.
+
+See [docs/cross-service-tracing.md](../../../docs/cross-service-tracing.md) for the full walkthrough.
 
 ## Heavy endpoints (big call trees)
 

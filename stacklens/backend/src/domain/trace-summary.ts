@@ -53,6 +53,10 @@ export function summarize(t: TraceRecord): TraceSummary {
     errors,
     hasPayload: true,
     parent: validParent(t.parent),
+    outboundCount: t.spans.reduce((n, s) => n + (s.outbound ? callCount(s) : 0), 0),
+    outboundHosts: [
+      ...new Set(t.spans.flatMap((s) => (typeof s.outbound?.host === 'string' ? [s.outbound.host.slice(0, 200)] : []))),
+    ].slice(0, 10),
   };
 }
 

@@ -1,8 +1,10 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import zlib from 'node:zlib';
+import axios from 'axios';
 import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { stacklens, type TraceRecord } from '../src';
+import { stacklens, type SpanRecord, type TraceRecord } from '../src';
 import { tracer } from '../src/core/tracer';
 import { formatTraceparent, formatTracestate, hostMatcher, parseTraceparent, parseTracestate } from '../src/core/propagation';
 import { redactUrl, routeOf, wrapFetch } from '../src/integrations/http-client';
@@ -297,5 +299,172 @@ describe('outgoing calls', () => {
       traceId = stacklens.currentTraceId()!;
     });
     expect(parseTraceparent(headers.traceparent)?.traceId).toBe(traceId);
+  });
+});
+
+describe('callees without StackLens', () => {
+  let plain = '';
+  let plainServer: http.Server;
+  const big = 'x'.repeat(200_000);
+  beforeAll(async () => {
+    // a plain node:http service: no StackLens, so no traceparent handling and no x-stacklens-trace-id
+    plainServer = http.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (d) => chunks.push(d));
+      req.on('end', () => {
+        const body = Buffer.concat(chunks).toString();
+        if (req.url?.startsWith('/json')) {
+          res.writeHead(200, { 'content-type': 'application/json', 'set-cookie': 'sid=abc', 'x-request-id': 'r-1' });
+          res.end(JSON.stringify({ ok: true, received: body ? JSON.parse(body) : null, password: 'p' }));
+        } else if (req.url === '/gzip') {
+          res.writeHead(200, { 'content-type': 'application/json', 'content-encoding': 'gzip' });
+          res.end(zlib.gzipSync(JSON.stringify({ zipped: true, items: [1, 2, 3] })));
+        } else if (req.url === '/stream') {
+          res.writeHead(200, { 'content-type': 'text/plain' });
+          res.write('one,');
+          setTimeout(() => res.write('two,'), 5);
+          setTimeout(() => res.end('three'), 10);
+        } else if (req.url === '/big') {
+          res.writeHead(200, { 'content-type': 'text/plain' });
+          res.end(big);
+        } else {
+          res.writeHead(404, { 'content-type': 'application/json' });
+          res.end('{"error":"nope"}');
+        }
+      });
+    });
+    await new Promise<void>((r) => plainServer.listen(0, '127.0.0.1', r));
+    plain = `http://127.0.0.1:${(plainServer.address() as AddressInfo).port}`;
+  });
+  afterAll(() => plainServer.close());
+
+  /** Run `fn` in a job trace and return its single outgoing-call span. */
+  async function inJob<T>(name: string, fn: () => Promise<T>): Promise<{ value: T; span: SpanRecord; trace: TraceRecord }> {
+    const pending = waitFor((t) => t.name === name);
+    const value = await stacklens.trace(name, fn);
+    const trace = await pending;
+    const spans = outbound(trace);
+    expect(spans).toHaveLength(1);
+    return { value, span: spans[0], trace };
+  }
+  type Req = { method: string; url: string; headers: Record<string, unknown>; body?: unknown };
+  type Res = { statusCode: number; headers: Record<string, unknown>; body?: unknown };
+
+  it('fetch: records request and response exactly as sent and received, redacted', async () => {
+    const { value, span } = await inJob('plain-fetch', async () => {
+      const r = await fetch(`${plain}/json?api_key=k1&page=2`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer t', 'x-api-key': 'k2' },
+        body: JSON.stringify({ sku: 'a', password: 'hunter2' }),
+      });
+      return r.json();
+    });
+    expect(value).toMatchObject({ ok: true, password: 'p' }); // the app sees the real body
+    expect(span.outbound).toMatchObject({ method: 'POST', statusCode: 200, propagated: true });
+    expect(span.outbound?.childTraceId).toBeUndefined();
+    expect(span.outbound?.url).toBe(`${plain}/json?api_key=[REDACTED]&page=2`);
+    const req = span.args![0] as Req;
+    expect(req.headers).toMatchObject({ authorization: '[REDACTED]', 'x-api-key': '[REDACTED]', 'content-type': 'application/json' });
+    expect(req.body).toEqual({ sku: 'a', password: '[REDACTED]' });
+    const res = span.result as Res;
+    expect(res.statusCode).toBe(200);
+    expect(res.headers).toMatchObject({ 'set-cookie': '[REDACTED]', 'x-request-id': 'r-1' });
+    expect(res.body).toEqual({ ok: true, received: { sku: 'a', password: '[REDACTED]' }, password: '[REDACTED]' });
+    expect(span.duration).toBeGreaterThan(0);
+  });
+
+  it('fetch: copies a streamed body as the app reads it', async () => {
+    const { value, span } = await inJob('plain-stream', async () => {
+      const r = await fetch(`${plain}/stream`);
+      const reader = r.body!.getReader();
+      let text = '';
+      for (;;) {
+        const { done, value: chunk } = await reader.read();
+        if (done) break;
+        text += new TextDecoder().decode(chunk);
+      }
+      return text;
+    });
+    expect(value).toBe('one,two,three');
+    expect((span.result as Res).body).toBe('one,two,three');
+  });
+
+  it('fetch: touching res.body does not consume it, and an unread body is left alone', async () => {
+    const touched = await inJob('plain-touch', async () => {
+      const r = await fetch(`${plain}/json`);
+      if (!r.body || r.bodyUsed) throw new Error('unexpected');
+      return r.json();
+    });
+    expect(touched.value).toMatchObject({ ok: true });
+    expect((touched.span.result as Res).body).toMatchObject({ ok: true });
+
+    const unread = await inJob('plain-unread', async () => (await fetch(`${plain}/json`)).status);
+    expect(unread.value).toBe(200);
+    expect(unread.span.status).toBe('ok');
+    expect((unread.span.result as Res).body).toBeUndefined();
+  });
+
+  it('fetch: arrayBuffer() and a 404 are captured', async () => {
+    const { span } = await inJob('plain-404', async () => new TextDecoder().decode(await (await fetch(`${plain}/missing`)).arrayBuffer()));
+    expect(span.status).toBe('ok');
+    expect(span.result).toMatchObject({ statusCode: 404, body: { error: 'nope' } });
+  });
+
+  it('http.get: inflates a gzip body for the record', async () => {
+    const { value, span } = await inJob(
+      'plain-gzip',
+      () =>
+        new Promise<number>((resolve) =>
+          http.get(`${plain}/gzip`, (r) => {
+            let n = 0;
+            r.on('data', (d) => (n += d.length));
+            r.on('end', () => resolve(n));
+          }),
+        ),
+    );
+    expect(value).toBeGreaterThan(0); // the app got the compressed bytes untouched
+    expect((span.result as Res).body).toEqual({ zipped: true, items: [1, 2, 3] });
+  });
+
+  it('keeps big bodies within the limits while the app gets all of it', async () => {
+    const { value, span } = await inJob('plain-big', async () => (await fetch(`${plain}/big`)).text());
+    expect(value).toHaveLength(big.length);
+    const body = (span.result as Res).body as string;
+    expect(body.length).toBeLessThanOrEqual(2000 + 20); // maxStringLength
+  });
+
+  it('axios: JSON request and response, gzip, redaction and errors', async () => {
+    const { value, span } = await inJob(
+      'plain-axios',
+      async () =>
+        (await axios.post(`${plain}/json?token=t`, { sku: 'b', cardNumber: '4242' }, { headers: { Authorization: 'Bearer z' } })).data,
+    );
+    expect(value).toMatchObject({ ok: true, received: { cardNumber: '4242' } });
+    expect(span.name).toMatch(/^POST 127\.0\.0\.1:\d+\/json$/);
+    const req = span.args![0] as Req;
+    expect(req.headers).toMatchObject({ authorization: '[REDACTED]' });
+    expect(req.body).toEqual({ sku: 'b', cardNumber: '[REDACTED]' });
+    expect(span.result).toMatchObject({ statusCode: 200, body: { ok: true, received: { sku: 'b', cardNumber: '[REDACTED]' } } });
+
+    const zipped = await inJob('plain-axios-gzip', async () => (await axios.get(`${plain}/gzip`)).data);
+    expect(zipped.value).toEqual({ zipped: true, items: [1, 2, 3] });
+    expect((zipped.span.result as Res).body).toEqual({ zipped: true, items: [1, 2, 3] });
+
+    const streamed = await inJob('plain-axios-stream', async () => {
+      const r = await axios.get(`${plain}/stream`, { responseType: 'stream' });
+      let text = '';
+      for await (const chunk of r.data) text += chunk;
+      return text;
+    });
+    expect(streamed.value).toBe('one,two,three');
+    expect((streamed.span.result as Res).body).toBe('one,two,three');
+
+    const failed = await inJob('plain-axios-404', async () => axios.get(`${plain}/missing`).catch((e) => e.response.status));
+    expect(failed.value).toBe(404);
+    expect(failed.span.result).toMatchObject({ statusCode: 404, body: { error: 'nope' } });
+
+    const refused = await inJob('plain-axios-refused', async () => axios.get('http://127.0.0.1:1/x').catch((e) => e.code));
+    expect(refused.value).toBe('ECONNREFUSED');
+    expect(refused.span).toMatchObject({ status: 'error', error: { message: expect.stringContaining('ECONNREFUSED') } });
   });
 });

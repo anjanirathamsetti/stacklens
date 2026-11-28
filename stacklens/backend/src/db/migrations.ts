@@ -209,6 +209,16 @@ export const MIGRATIONS: { id: number; name: string; sql: string }[] = [
       create index if not exists traces_parent_idx on traces (parent_trace_id, start_time) where parent_trace_id is not null;
     `,
   },
+  {
+    id: 5,
+    name: 'outgoing call summary',
+    sql: /* sql */ `
+      -- outgoing HTTP calls made by the request (counting calls folded into collapsed spans) and their hosts
+      alter table traces add column if not exists outbound_count integer not null default 0;
+      alter table traces add column if not exists outbound_hosts jsonb not null default '[]'::jsonb;
+      create index if not exists traces_outbound_idx on traces (start_time desc) where outbound_count > 0;
+    `,
+  },
 ];
 
 const LOCK_ID = 7_041_912; // arbitrary, stable

@@ -30,6 +30,8 @@ export interface TraceQuery {
   userId?: string;
   route?: string;
   minDuration?: number;
+  /** only requests that made outgoing HTTP calls */
+  external?: boolean;
   /** epoch ms */
   from?: number;
   to?: number;
@@ -46,7 +48,8 @@ export interface TraceQuery {
 const SUMMARY_COLUMNS = `
   t.id, t.start_time, t.duration_ms, t.status, t.kind, t.name, t.application, t.project, t.environment, t.user_id,
   t.method, t.url, t.route, t.status_code, t.span_count, t.error_count, t.max_depth, t.truncated, t.kind_time, t.errors,
-  (t.payload is not null) as has_payload, t.parent_trace_id, t.parent_span_id, t.parent_service`;
+  (t.payload is not null) as has_payload, t.parent_trace_id, t.parent_span_id, t.parent_service, t.outbound_count, t.outbound_hosts,
+  case when t.outbound_count > 0 then (select count(*) from traces c where c.parent_trace_id = t.id)::int else 0 end as linked_children`;
 
 interface SummaryRow {
   id: string;
@@ -73,6 +76,9 @@ interface SummaryRow {
   parent_trace_id: string | null;
   parent_span_id: string | null;
   parent_service: string | null;
+  outbound_count: number;
+  outbound_hosts: string[];
+  linked_children: number;
 }
 
 const ms = (d: Date | string | number) => (d instanceof Date ? d.getTime() : new Date(d).getTime());
@@ -106,6 +112,9 @@ function toSummary(r: SummaryRow): TraceSummary {
       r.parent_trace_id && r.parent_span_id
         ? { traceId: r.parent_trace_id, spanId: r.parent_span_id, service: opt(r.parent_service) }
         : undefined,
+    outboundCount: r.outbound_count || undefined,
+    outboundHosts: r.outbound_count ? r.outbound_hosts : undefined,
+    linkedChildren: r.outbound_count ? Number(r.linked_children) : undefined,
   };
 }
 
@@ -136,6 +145,8 @@ function traceRow(s: TraceSummary, payload: TraceRecord | null) {
     parent_trace_id: s.parent?.traceId ?? null,
     parent_span_id: s.parent?.spanId ?? null,
     parent_service: s.parent?.service ?? null,
+    outbound_count: s.outboundCount ?? 0,
+    outbound_hosts: s.outboundHosts ?? [],
   };
 }
 
@@ -164,7 +175,7 @@ const TRACE_RECORDSET = `
   id text, start_time timestamptz, duration_ms double precision, status text, kind text, name text, application text,
   project text, environment text, user_id text, method text, url text, route text, status_code integer, span_count integer,
   error_count integer, max_depth integer, truncated boolean, kind_time jsonb, errors jsonb, payload jsonb,
-  parent_trace_id text, parent_span_id text, parent_service text`;
+  parent_trace_id text, parent_span_id text, parent_service text, outbound_count integer, outbound_hosts jsonb`;
 
 const ERROR_RECORDSET = `
   trace_id text, error_id text, start_time timestamptz, application text, span_name text, span_kind text, name text,
@@ -181,7 +192,7 @@ export async function insertTraces(records: { summary: TraceSummary; payload: Tr
     const rows = await tx.query<{ id: string }>(
       `insert into traces (id, start_time, duration_ms, status, kind, name, application, project, environment, user_id, method, url,
          route, status_code, span_count, error_count, max_depth, truncated, kind_time, errors, payload,
-         parent_trace_id, parent_span_id, parent_service)
+         parent_trace_id, parent_span_id, parent_service, outbound_count, outbound_hosts)
        select * from jsonb_to_recordset($1::jsonb) as x(${TRACE_RECORDSET})
        on conflict (id) do nothing
        returning id`,
@@ -232,6 +243,7 @@ function whereClause(q: TraceQuery, opts: { search?: boolean; startIndex?: numbe
   if (q.method) parts.push(`t.method = ${p(q.method)}`);
   if (q.route) parts.push(`t.route = ${p(q.route)}`);
   if (q.minDuration) parts.push(`t.duration_ms >= ${p(q.minDuration)}`);
+  if (q.external) parts.push(`t.outbound_count > 0`);
   if (q.status === 'error') parts.push(`(t.status = 'error' or t.error_count > 0)`);
   if (q.status === 'ok') parts.push(`(t.status <> 'error' and t.error_count = 0)`);
   if (q.status === '2xx') parts.push(`t.status_code between 200 and 299`);

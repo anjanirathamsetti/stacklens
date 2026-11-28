@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, CornerLeftUp, Globe, Loader2, Unplug } from 'lucide-react';
+import { ArrowUpRight, CornerLeftUp, EyeOff, Globe, Loader2, Unplug } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
 import { StatusCodeBadge } from '@/components/data-display/trace-badges';
 import { cn, formatMs } from '@/lib/utils';
@@ -95,12 +95,17 @@ export function useRemoteCalls(trace: TraceRecord | null) {
 
   const view = useMemo(() => {
     const remote = new Map<string, RemoteLink>();
-    if (!trace) return { spans: [] as ViewSpan[], remote };
+    // outgoing calls that got a response but no trace to link: the callee doesn't run StackLens
+    const noGraph = new Map<string, string>();
+    if (!trace) return { spans: [] as ViewSpan[], remote, noGraph };
     const spans: ViewSpan[] = [...trace.spans];
     const byId = new Map<string, ViewSpan>(spans.map((s) => [s.id, s]));
 
     const level = (levelSpans: SpanRecord[], levelLinks: TraceLinks | null | undefined, prefix: string, hops: number) => {
-      for (const [viewId, l] of linksOf(levelSpans, levelLinks, prefix)) {
+      const found = linksOf(levelSpans, levelLinks, prefix);
+      for (const s of levelSpans)
+        if (s.outbound && s.outbound.statusCode !== undefined && !found.has(prefix + s.id)) noGraph.set(prefix + s.id, s.outbound.host);
+      for (const [viewId, l] of found) {
         const got = loaded[l.traceId];
         const isOpen = open.has(viewId);
         // a reported id with no stored trace: the callee reports to another server (or hasn't yet)
@@ -139,7 +144,7 @@ export function useRemoteCalls(trace: TraceRecord | null) {
       }
     };
     level(trace.spans, links, '', 0);
-    return { spans, remote };
+    return { spans, remote, noGraph };
   }, [trace, links, loaded, open]);
 
   const toggle = useCallback(
@@ -167,7 +172,7 @@ export function useRemoteCalls(trace: TraceRecord | null) {
     [loaded],
   );
 
-  return { links, spans: view.spans, remote: view.remote, toggle, recordOf };
+  return { links, spans: view.spans, remote: view.remote, noGraph: view.noGraph, toggle, recordOf };
 }
 
 const shortId = (id: string) => (id.length > 12 ? `${id.slice(0, 10)}…` : id);
@@ -177,7 +182,7 @@ export function RemoteChip({ link, onToggle }: { link: RemoteLink; onToggle: () 
   const label = link.service ?? link.host ?? 'remote';
   const tip =
     link.state === 'unavailable'
-      ? `${link.host ?? 'The callee'} answered with trace ${link.traceId}, which isn't stored on this StackLens server (it may report to another one). Click to check again.`
+      ? `${link.host ?? 'The callee'} runs StackLens and answered with trace ${link.traceId}, but that trace isn't stored here yet: it may still be arriving, or the callee reports to another StackLens server. Click to check again.`
       : `Called ${label}${link.summary ? ` · ${link.summary.name} · ${formatMs(link.summary.duration)}` : ''}. ${link.state === 'open' ? 'Collapse' : 'Expand'} to ${link.state === 'open' ? 'hide' : 'see'} its call tree here.`;
   return (
     <span className="inline-flex items-center gap-1">
@@ -203,7 +208,7 @@ export function RemoteChip({ link, onToggle }: { link: RemoteLink; onToggle: () 
             <Globe className="size-3" />
           )}
           {label}
-          {link.state === 'unavailable' && <span className="font-normal">· elsewhere</span>}
+          {link.state === 'unavailable' && <span className="font-normal">· trace not received</span>}
           {link.state === 'error' && <span className="font-normal text-destructive">· failed to load</span>}
         </button>
       </Tooltip>
@@ -220,6 +225,25 @@ export function RemoteChip({ link, onToggle }: { link: RemoteLink; onToggle: () 
         </Tooltip>
       )}
     </span>
+  );
+}
+
+/** Call-tree chip on an outgoing call whose callee doesn't report to StackLens. */
+export function NoCallGraphChip({ host }: { host: string }) {
+  return (
+    <Tooltip
+      content={
+        <div className="max-w-xs text-xs">
+          Call graph not available: {host} doesn’t report to StackLens. The request and response this service sent and received are recorded
+          on this call – select it to see them.
+        </div>
+      }
+    >
+      <span className="inline-flex items-center gap-1 rounded border border-dashed border-amber-500/50 px-1 font-mono text-[10px] text-amber-700 dark:text-amber-300">
+        <EyeOff className="size-3" />
+        no call graph
+      </span>
+    </Tooltip>
   );
 }
 
@@ -267,7 +291,18 @@ export function CalledByBanner({ parent, qs }: { parent: NonNullable<TraceLinks[
 }
 
 /** Inspector section for an outgoing call or a grafted callee span. */
-export function RemoteInspectorNote({ span, link, onToggle }: { span: SpanNode; link?: RemoteLink; onToggle: () => void }) {
+export function RemoteInspectorNote({
+  span,
+  link,
+  noGraph,
+  onToggle,
+}: {
+  span: SpanNode;
+  link?: RemoteLink;
+  /** the call got a response but no linked trace */
+  noGraph?: boolean;
+  onToggle: () => void;
+}) {
   if (span.remote) {
     return (
       <div className="flex items-center gap-2 border-b bg-sky-500/[0.05] px-4 py-2 text-xs">
@@ -310,11 +345,29 @@ export function RemoteInspectorNote({ span, link, onToggle }: { span: SpanNode; 
       </div>
       {ob && <div className="break-all font-mono text-[11px] text-muted-foreground">{ob.url}</div>}
       {link?.state === 'unavailable' && (
-        <div className="text-muted-foreground">
-          The callee reported trace <span className="font-mono">{link.traceId}</span>, which isn’t stored on this server.
+        <div className="rounded border border-dashed border-amber-500/40 bg-amber-500/[0.06] px-2 py-1.5 text-amber-800 dark:text-amber-200">
+          <div className="font-medium">Child trace not received yet</div>
+          <div className="mt-0.5">
+            {ob?.host ?? 'The callee'} runs StackLens and answered with trace <span className="font-mono">{link.traceId}</span>, but it
+            isn’t stored on this server. It may still be arriving, or {ob?.host ?? 'the callee'} reports to another StackLens server.{' '}
+            <button onClick={onToggle} className="cursor-pointer underline">
+              Check again
+            </button>
+          </div>
         </div>
       )}
-      {ob && !link && ob.propagated === false && (
+      {noGraph && (
+        <div className="rounded border border-dashed border-amber-500/40 bg-amber-500/[0.06] px-2 py-1.5 text-amber-800 dark:text-amber-200">
+          <div className="flex items-center gap-1.5 font-medium">
+            <EyeOff className="size-3.5" /> Call graph not available — {ob?.host} doesn’t report to StackLens
+          </div>
+          <div className="mt-0.5">
+            The request and response below are exactly what this service sent and received (secrets redacted, large values trimmed).
+            {ob?.propagated === false && ' No trace context was sent to this host (propagateTo).'}
+          </div>
+        </div>
+      )}
+      {ob && !link && !noGraph && ob.propagated === false && (
         <div className="text-muted-foreground">No trace context was sent (propagation is off or restricted for this host).</div>
       )}
     </div>

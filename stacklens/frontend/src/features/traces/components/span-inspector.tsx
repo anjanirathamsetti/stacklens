@@ -254,6 +254,107 @@ const isEmptyValue = (v: unknown) => v === undefined || v === null || (typeof v 
 /* -------------------------------- panels -------------------------------- */
 
 /** Does this call have input worth searching? */
+/** Request / response of an outgoing HTTP call, as recorded by the SDK (`args[0]` / `result`). */
+type OutboundRequest = { method?: string; url?: string; headers?: unknown; body?: unknown };
+type OutboundResponse = { statusCode?: number; headers?: unknown; body?: unknown };
+
+function sizeHint(v: unknown): string {
+  if (isEmptyValue(v)) return 'empty';
+  if (typeof v === 'string') return `${v.length.toLocaleString()} chars`;
+  if (Array.isArray(v)) return `${v.length} items`;
+  if (typeof v === 'object') return `${Object.keys(v as object).length} fields`;
+  return String(v);
+}
+
+/** Body / headers cards shared by the outgoing request and response views. */
+function exchangeCards(parts: [string, unknown][], q: string, filter: string): CardSpec[] {
+  return parts.map(([k, v]): CardSpec => {
+    const empty = isEmptyValue(v);
+    return {
+      key: k,
+      title: <span className="capitalize">{k}</span>,
+      right: !empty && <CopyButton text={copyJson(v)} />,
+      preview: <span className="text-muted-foreground">{empty ? (k === 'body' ? 'no body' : 'empty') : sizeHint(v)}</span>,
+      matches: !empty && (textHas(k, q) || jsonMatches(v, q)),
+      body: empty ? (
+        <div className="text-xs text-muted-foreground">{k === 'body' ? 'no body (or not read by the app)' : 'empty'}</div>
+      ) : (
+        <JsonView value={v} defaultOpen={k === 'headers' ? 1 : 2} filter={textHas(k, q) ? undefined : filter} />
+      ),
+    };
+  });
+}
+
+function OutboundInput({ span, filter }: { span: SpanNode; filter: string }) {
+  const q = lc(filter);
+  const ob = span.outbound!;
+  const r = (span.args?.[0] ?? {}) as OutboundRequest;
+  const cards: CardSpec[] = [
+    {
+      key: 'request',
+      title: (
+        <span className="break-all font-mono">
+          {ob.method} {ob.url}
+        </span>
+      ),
+      matches: [ob.method, ob.url, ob.host].some((t) => textHas(t, q)),
+      body: (
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <div className="text-[10px] text-muted-foreground">host</div>
+            <div className="font-mono">{ob.host}</div>
+          </div>
+          <div>
+            <div className="text-[10px] text-muted-foreground">trace context</div>
+            <div className="font-mono">{ob.propagated ? 'traceparent sent' : 'not sent'}</div>
+          </div>
+        </div>
+      ),
+    },
+    ...exchangeCards(
+      [
+        ['body', r.body],
+        ['headers', r.headers],
+      ],
+      q,
+      filter,
+    ),
+  ];
+  return <CardStack key={span.id} cards={cards} label="Request" filter={filter} />;
+}
+
+function OutboundOutput({ span, filter }: { span: SpanNode; filter: string }) {
+  const q = lc(filter);
+  const res = span.result as OutboundResponse | undefined;
+  const err = span.status === 'error' ? errorCard(span) : undefined;
+  if (!res && span.status === 'pending') return <Empty>This call had not finished when the trace was exported.</Empty>;
+  if (!res) return err ? <CardStack key={span.id} cards={[err]} /> : <Empty>No response was recorded.</Empty>;
+  const status = res.statusCode ?? span.outbound?.statusCode;
+  const cards: CardSpec[] = [
+    ...(err ? [err] : []),
+    {
+      key: 'response',
+      title: (
+        <span className="flex items-center gap-2">
+          Response {status && <StatusCodeBadge code={status} />}
+          <span className="font-mono text-[11px] font-normal text-muted-foreground">{formatMs(span.duration)}</span>
+        </span>
+      ),
+      matches: textHas(String(status ?? ''), q),
+      body: <div className="text-xs text-muted-foreground">{span.outbound?.host}</div>,
+    },
+    ...exchangeCards(
+      [
+        ['body', res.body],
+        ['headers', res.headers],
+      ],
+      q,
+      filter,
+    ),
+  ];
+  return <CardStack key={span.id} cards={cards} label="Response" filter={filter} />;
+}
+
 function hasSearchableInput(span: SpanNode, trace: TraceRecord) {
   return span.parentId === null ? !!trace.http : !!span.args?.length;
 }
@@ -305,6 +406,7 @@ function InputPanel({ span, trace, filter }: { span: SpanNode; trace: TraceRecor
     ];
     return <CardStack key={span.id} cards={cards} label="Request" filter={filter} />;
   }
+  if (span.outbound && !span.collapsed) return <OutboundInput span={span} filter={filter} />;
 
   const sql = span.kind === 'db' && typeof span.args?.[0] === 'string' ? (span.args[0] as string) : undefined;
   if (sql) {
@@ -377,7 +479,7 @@ function InputPanel({ span, trace, filter }: { span: SpanNode; trace: TraceRecor
 
 /** Does this call have output worth searching? */
 function hasSearchableOutput(span: SpanNode, trace: TraceRecord) {
-  return span.parentId === null ? !!trace.http : span.status === 'ok' && span.result !== undefined;
+  return span.parentId === null ? !!trace.http : (span.status === 'ok' || !!span.outbound) && span.result !== undefined;
 }
 
 function OutputPanel({ span, trace, filter }: { span: SpanNode; trace: TraceRecord; filter: string }) {
@@ -412,6 +514,7 @@ function OutputPanel({ span, trace, filter }: { span: SpanNode; trace: TraceReco
     ];
     return <CardStack key={span.id} cards={cards} filter={filter} />;
   }
+  if (span.outbound && !span.collapsed) return <OutboundOutput span={span} filter={filter} />;
   if (span.status === 'error') return <CardStack key={span.id} cards={[errorCard(span)!]} />;
   if (span.status === 'pending') return <Empty>This call had not finished when the trace was exported.</Empty>;
   if (span.result === undefined)

@@ -497,6 +497,7 @@ function TraceDetail({ id }: { id: string }) {
                     filter={filter}
                     errorOrigins={viewOrigins}
                     remote={remote.remote}
+                    noGraph={remote.noGraph}
                     onToggleRemote={remote.toggle}
                   />
                   {!selected && (
@@ -607,7 +608,12 @@ function TraceDetail({ id }: { id: string }) {
               onTab={setTab}
               onClose={() => setSelectedId(undefined)}
               note={
-                <RemoteInspectorNote span={selected} link={remote.remote.get(selected.id)} onToggle={() => remote.toggle(selected.id)} />
+                <RemoteInspectorNote
+                  span={selected}
+                  link={remote.remote.get(selected.id)}
+                  noGraph={remote.noGraph.has(selected.id)}
+                  onToggle={() => remote.toggle(selected.id)}
+                />
               }
             />
           </ResizableAside>
