@@ -6,6 +6,7 @@ export type {
   HttpExchange,
   LogLevel,
   OutboundCall,
+  SdkInfo,
   SpanError,
   SpanKind,
   SpanLog,

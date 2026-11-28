@@ -6,3 +6,8 @@ coverage
 package-lock.json
 *.md
 *.nosync
+.venv*
+__pycache__
+examples/python/.data
+*.egg-info
+.pytest_cache

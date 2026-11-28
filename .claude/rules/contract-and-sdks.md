@@ -15,3 +15,4 @@ paths:
 - Redact secrets by key before anything leaves the process.
 - The core purpose is function-by-function args and return values: don't add sampling or capture shortcuts that drop them by default.
 - Node SDK: ESM + CJS via tsup; keep `sdks/node-tracer/README.md` in sync with public API changes.
+- Python SDK: stdlib-only core, Python 3.9+, integrations import their library lazily; keep `sdks/python-tracer/README.md` in sync and run `npm run test:python` and `npm run conformance:python`.

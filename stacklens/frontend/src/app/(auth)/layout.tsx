@@ -19,7 +19,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Logo markClassName="size-8" wordmarkClassName="text-2xl" />
         </div>
         {children}
-        <p className="mt-6 text-center text-xs text-muted-foreground">Call-tree tracing for Node.js backends</p>
+        <p className="mt-6 text-center text-xs text-muted-foreground">Call-tree tracing for Node.js and Python backends</p>
       </div>
     </div>
   );

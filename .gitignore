@@ -21,3 +21,11 @@ coverage/
 
 # iCloud Drive: keep build output out of sync (see docs)
 *.nosync
+
+# Python
+__pycache__/
+*.pyc
+.venv*/
+.pytest_cache/
+*.egg-info/
+examples/python/.data/

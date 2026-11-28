@@ -8,7 +8,7 @@
 # StackLens
 
 **See every function call inside every request.**<br>
-Call-tree tracing for Node.js backends: arguments, return values, SQL, errors and logs, function by function, across services.
+Call-tree tracing for Node.js and Python backends: arguments, return values, SQL, errors and logs, function by function, across services.
 
 [![CI](https://github.com/anjanirathamsetti/stacklens/actions/workflows/ci.yml/badge.svg)](https://github.com/anjanirathamsetti/stacklens/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-1f2328.svg)](LICENSE)
@@ -106,7 +106,7 @@ Project, application, environment, user and a CloudWatch-style time picker. All 
 ## Quick start
 
 > [!NOTE]
-> StackLens isn't published to npm yet. Run the server from source or as a Docker image you build locally.
+> StackLens isn't published to npm or PyPI yet. Run the server from source or as a Docker image you build locally, and install the SDKs from the repo.
 
 **1. Run the server**
 
@@ -127,7 +127,7 @@ Open http://localhost:4300 and create the admin account. Add teammates later in 
 
 **2. Instrument your API**
 
-Until the SDK is on npm, build it once and install it from the repo:
+Until the SDKs are published, install them from the repo. Node.js:
 
 ```bash
 npm run build:packages                                  # in the stacklens repo
@@ -168,6 +168,30 @@ app.use(stacklens.express());
 </details>
 
 <details>
+<summary><b>Python: FastAPI + SQLAlchemy (Flask, Django and Celery too)</b></summary>
+
+```bash
+pip install -e /path/to/stacklens/sdks/python-tracer   # Python 3.9+, no dependencies of its own
+```
+
+```python
+# main.py
+import stacklens
+from stacklens.integrations.fastapi import instrument_fastapi
+from stacklens.integrations.sqlalchemy import instrument_sqlalchemy
+
+stacklens.init(application="catalog-api", project="storefront")
+instrument_sqlalchemy()
+stacklens.instrument_module(services)   # every class and function in your modules
+app = FastAPI()
+instrument_fastapi(app)
+```
+
+See the [Python SDK reference](sdks/python-tracer/README.md) for Flask, Django, Celery, `@stacklens.traced` and the options.
+
+</details>
+
+<details>
 <summary><b>Jobs, scripts and manual instrumentation</b></summary>
 
 ```ts
@@ -196,7 +220,7 @@ flowchart LR
     S["StackLens server<br/>collector + UI"] --> DB[(PostgreSQL)]
 ```
 
-1. The SDK wraps your controllers, services, repositories and SQL calls. Each request runs inside an `AsyncLocalStorage` context, so every call knows its parent.
+1. The SDK wraps your controllers, services, repositories and SQL calls. Each request runs inside an `AsyncLocalStorage` context (Python: `contextvars`), so every call knows its parent.
 2. Arguments and return values are copied at call time with depth, size and per-trace limits; keys like `password`, `token` and `authorization` are redacted.
 3. Finished traces are batched and sent in the background. Export never blocks a response.
 4. The server stores summaries for fast filtering and charts, plus the full call tree as `jsonb`. Live updates reach the UI through PostgreSQL `LISTEN/NOTIFY`, so it runs on several replicas.
@@ -239,7 +263,7 @@ The server reads environment variables (or `stacklens/frontend/.env.local`). The
 | `STACKLENS_ADMIN_EMAIL` / `STACKLENS_ADMIN_PASSWORD` | – | Create the first admin at startup |
 | `SERVICENOW_INSTANCE` / `SERVICENOW_*` | – | Real ServiceNow incidents instead of local mode |
 
-SDK options (`application`, `endpoint`, `apiKey`, capture limits, redaction, `propagateTo`, …) are in the [SDK reference](sdks/node-tracer/README.md#options). Everything else is in [deployment and configuration](docs/deployment.md).
+SDK options (`application`, `endpoint`, `apiKey`, capture limits, redaction, `propagateTo`, …) are in the SDK references for [Node.js](sdks/node-tracer/README.md#options) and [Python](sdks/python-tracer/README.md#options) (same names in snake_case). Everything else is in [deployment and configuration](docs/deployment.md).
 
 ## Repository layout
 
@@ -252,8 +276,10 @@ packages/
   shared/            helpers shared by frontend and backend
 sdks/
   node-tracer/       @stacklens/node-tracer – the Node.js SDK
+  python-tracer/     stacklens-python-tracer – the Python SDK
   conformance/       language-neutral scenarios every SDK must pass
 examples/node/       express-basic · nestjs-typeorm · shipping-service (demo apps)
+examples/python/     fastapi-catalog · flask-inventory · celery-worker (demo apps)
 deploy/              Dockerfile · docker-compose.yml
 docs/                architecture · deployment · contract · SDK authoring · cross-service tracing
 ```
@@ -274,7 +300,9 @@ npm run seed                 # heavy sample traces (deep trees, loops, recursion
 | Command | |
 |---|---|
 | `npm run typecheck` · `lint` · `test` · `format` | Quality gates, also run in CI |
-| `npm run conformance:node` | Check the Node SDK against the cross-language suite |
+| `npm run conformance:node` · `conformance:python` | Check an SDK against the cross-language suite |
+| `npm run test:python` | The Python SDK's pytest suite (`PYTHON=…` to pick an interpreter) |
+| `npm run example:python` · `sample:python` | Run the Python demo apps · fill a throwaway server with sample traces ([details](examples/python/README.md)) |
 | `npm run build` | Production build of the packages and the server |
 | `npm run docker:build` · `docker:up` | Build the image · run it with PostgreSQL |
 
@@ -283,16 +311,17 @@ npm run seed                 # heavy sample traces (deep trees, loops, recursion
 - [x] Node.js SDK: NestJS, Express, TypeORM, outgoing HTTP
 - [x] Cross-service tracing with W3C `traceparent`
 - [x] PDF reports
-- [ ] Publish the server and SDK to npm and a container registry
-- [ ] SDKs for more languages (Python, Go, Java) on the shared contract
+- [x] Python SDK: FastAPI/Starlette, Flask, Django, SQLAlchemy, Celery, requests/httpx/urllib3
+- [ ] Publish the server and SDKs to npm, PyPI and a container registry
+- [ ] SDKs for more languages (Go, Java) on the shared contract
 - [ ] AI assistant and MCP server (the settings screens are in place as previews)
-- [ ] Trace propagation through queues and background jobs
+- [ ] Trace propagation through more queues and background-job systems (Celery is done)
 
 ## Documentation
 
 | | |
 |---|---|
-| [SDK reference](sdks/node-tracer/README.md) | Setup, API and options for `@stacklens/node-tracer` |
+| [Node.js SDK](sdks/node-tracer/README.md) · [Python SDK](sdks/python-tracer/README.md) | Setup, API and options for `@stacklens/node-tracer` and `stacklens-python-tracer` |
 | [Cross-service tracing](docs/cross-service-tracing.md) | How linking works, plus a three-service demo |
 | [Architecture and performance](docs/architecture.md) | How the SDK and server fit together, and the overhead |
 | [Deployment and configuration](docs/deployment.md) | Docker, PostgreSQL, all environment variables |

@@ -4,6 +4,7 @@ import { looksLikeSql } from '@stacklens/shared/sql-format';
 import { InlineSql } from '@/components/data-display/sql-view';
 import { ChevronRight, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/lib/language-context';
 
 type Json = unknown;
 
@@ -102,7 +103,8 @@ function Hl({ text, q }: { text: string; q?: string }) {
 }
 
 function Primitive({ v, q }: { v: Json; q?: string }) {
-  if (v === null) return <span className="text-muted-foreground">null</span>;
+  const py = useLanguage() === 'python';
+  if (v === null) return <span className="text-muted-foreground">{py ? 'None' : 'null'}</span>;
   if (typeof v === 'string') {
     if (v === '[REDACTED]') return <span className="rounded bg-warning/15 px-1 text-warning">REDACTED</span>;
     if (looksLikeSql(v) && !q) return <InlineSql sql={v} />;
@@ -123,7 +125,7 @@ function Primitive({ v, q }: { v: Json; q?: string }) {
   if (typeof v === 'boolean')
     return (
       <span className="text-violet-600 dark:text-violet-400">
-        <Hl text={String(v)} q={q} />
+        <Hl text={py ? (v ? 'True' : 'False') : String(v)} q={q} />
       </span>
     );
   return <span>{String(v)}</span>;
@@ -169,6 +171,7 @@ function MarkerView({ v }: { v: { $t: string; [k: string]: any } }) {
 }
 
 function Node({ k, v, depth, defaultOpen, q }: { k?: string | number; v: Json; depth: number; defaultOpen: number; q?: string }) {
+  const py = useLanguage() === 'python';
   const isObj = v !== null && typeof v === 'object' && !isMarker(v);
   const isMapOrSet = isMarker(v) && (v.$t === 'Map' || v.$t === 'Set');
   const [manualOpen, setOpen] = useState(depth < defaultOpen);
@@ -208,11 +211,11 @@ function Node({ k, v, depth, defaultOpen, q }: { k?: string | number; v: Json; d
       m.$t === 'Map'
         ? (m.entries ?? []).map(([kk, vv]: any, i: number) => [typeof kk === 'string' ? kk : i, vv])
         : (m.values ?? []).map((vv: any, i: number) => [i, vv]);
-    label = `${m.$t}(${m.size})`;
+    label = py ? `${m.$t === 'Map' ? 'dict' : 'set'}(${m.size})` : `${m.$t}(${m.size})`;
     brackets = ['{', '}'];
   } else if (Array.isArray(v)) {
     entries = v.map((x, i) => [i, x]);
-    label = `Array(${v.length})`;
+    label = py ? `list(${v.length})` : `Array(${v.length})`;
     brackets = ['[', ']'];
   } else {
     const o = v as Record<string, Json>;

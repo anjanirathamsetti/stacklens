@@ -10,7 +10,8 @@ stacklens/backend    @stacklens/backend – framework-agnostic server core (no n
 packages/contract    @stacklens/types – wire contract: TS types + schema/trace.schema.json
 packages/shared      @stacklens/shared – helpers used by frontend and backend
 sdks/node-tracer            @stacklens/node-tracer – Node SDK;  sdks/conformance – cross-language checks
-examples/node/*      demo apps (express :3001, nest :3002)
+sdks/python-tracer          stacklens-python-tracer – Python SDK (pyproject, not an npm workspace)
+examples/node/*      demo apps (express :3001, nest :3002);  examples/python/* (catalog :3011, inventory :3012)
 deploy/              Dockerfile + docker-compose;  scripts/ dev-guard, generate-traffic
 ```
 
@@ -22,7 +23,7 @@ Dependency direction: frontend → backend → shared → contract; sdks → con
 npm run dev                         # server on :4300 (builds contract + SDK first)
 npm run typecheck && npm run lint && npm test
 npm run build                       # production build of everything
-npm run conformance:node            # SDK conformance
+npm run conformance:node            # SDK conformance (and conformance:python, test:python)
 npm run seed                        # heavy sample traces (needs the example apps running)
 ```
 

@@ -1,5 +1,6 @@
 'use client';
 import { Suspense } from 'react';
+import { languageOfTypes, returnTypeOf } from '@stacklens/shared/language';
 import { useSearchParams } from 'next/navigation';
 import { PrintDocument, PrintSection } from '@/components/print/print-document';
 import { PrintTable } from '@/components/print/print-table';
@@ -95,7 +96,7 @@ function HotspotsReportInner() {
                     </span>
                   ))}
                   <span className="text-muted-foreground">) → </span>
-                  {h.async ? `Promise<${h.resultType ?? 'void'}>` : (h.resultType ?? 'void')}
+                  {returnTypeOf({ status: 'ok', ...h }, languageOfTypes([h.resultType, ...(h.argTypes ?? [])]))}
                 </code>
               ),
             },

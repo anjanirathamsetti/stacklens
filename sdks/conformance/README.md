@@ -6,10 +6,12 @@ Language-neutral checks that every StackLens SDK must pass.
 |---|---|
 | `scenarios.json` | The scenarios (nested calls, errors, loop collapsing, logs, cross-service calls) and what the resulting trace must contain. |
 | `check.mjs` | Validates a runner's output against `packages/contract/schema/trace.schema.json` and each scenario. |
-| `node/run.mjs` | Reference runner for `@stacklens/node-tracer`. |
+| `node-tracer/run.mjs` | Reference runner for `@stacklens/node-tracer`. |
+| `python-tracer/run.py` | Runner for `stacklens-python-tracer` (standard library only). |
 
 ```bash
 npm run conformance:node
+npm run conformance:python
 # any language:
 <runner> > results.json && node sdks/conformance/check.mjs results.json
 ```
