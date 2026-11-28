@@ -273,11 +273,21 @@ export function VolumeChart({ data, bucketMs, rangeMs, height = 220, syncId, onZ
   );
 }
 
+/** Short axis labels: "0", "500µs", "350ms", "1.2s" (tooltips keep full precision). */
+export function axisMs(v: number): string {
+  if (!v) return '0';
+  if (v < 1) return `${Math.round(v * 1000)}µs`;
+  if (v < 1000) return `${Number(v.toPrecision(3))}ms`;
+  return `${Number((v / 1000).toPrecision(3))}s`;
+}
+
 export function LatencyChart({ data, bucketMs, rangeMs, height = 220, syncId, onZoom, p95Overall }: SeriesProps & { p95Overall?: number }) {
   const { hidden, toggle } = useHidden();
   const { handlers, area } = useDragZoom(bucketMs, onZoom);
   const animate = useFirstPaint(data.length > 0);
   const rows = data.map((d) => ({ t: d.t, p50: d.count ? d.p50 : null, p95: d.count ? d.p95 : null, p99: d.count ? d.p99 : null }));
+  // with only a few populated buckets, dots keep single readings visible between the connecting lines
+  const sparse = rows.filter((r) => r.p95 !== null).length <= 24;
   const series = [
     { key: 'p50', label: 'p50', color: C.p50, w: 1.5 },
     { key: 'p95', label: 'p95', color: C.p95, w: 2.25 },
@@ -289,13 +299,13 @@ export function LatencyChart({ data, bucketMs, rangeMs, height = 220, syncId, on
         <LineChart
           data={rows}
           syncId={syncId}
-          margin={{ top: 8, right: 8, left: -10, bottom: 0 }}
+          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
           {...handlers}
           style={{ cursor: onZoom ? 'crosshair' : undefined, userSelect: 'none' }}
         >
           <CartesianGrid vertical={false} stroke={C.grid} strokeDasharray="3 3" />
           <XAxis dataKey="t" {...axisProps} tickFormatter={tickFormatter(rangeMs)} minTickGap={48} />
-          <YAxis {...axisProps} width={52} tickFormatter={(v) => formatMs(v)} />
+          <YAxis {...axisProps} width={48} tickFormatter={axisMs} />
           <RTooltip cursor={{ stroke: C.muted, strokeDasharray: '3 3' }} content={<ChartTooltip bucketMs={bucketMs} format={formatMs} />} />
           {p95Overall ? (
             <ReferenceLine
@@ -316,7 +326,7 @@ export function LatencyChart({ data, bucketMs, rangeMs, height = 220, syncId, on
                 name={s.label}
                 stroke={s.color}
                 strokeWidth={s.w}
-                dot={false}
+                dot={sparse ? { r: 2.5, strokeWidth: 0, fill: s.color } : false}
                 activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--card)' }}
                 connectNulls
                 isAnimationActive={animate}

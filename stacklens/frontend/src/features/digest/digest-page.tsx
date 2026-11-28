@@ -88,7 +88,8 @@ function Section({
 }) {
   const isEmpty = count === 0;
   return (
-    <Card className="overflow-hidden">
+    // a size container, so tables inside can drop optional columns when the card is narrow
+    <Card className="@container overflow-hidden">
       <div className="flex items-center gap-2 border-b px-4 py-2.5">
         <Icon className={cn('size-4 text-muted-foreground', !isEmpty && tone)} />
         <span className="text-sm font-semibold">{title}</span>
@@ -109,12 +110,16 @@ function ErrorRow({ e, qs }: { e: ErrorGroup; qs: string }) {
   return (
     <Link href={`/traces/${e.sampleTraceId}${qs}`} className="flex items-start gap-3 border-b px-4 py-2.5 last:border-0 hover:bg-accent/50">
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className={cn('font-medium', e.severity === 'warning' ? 'text-warning' : 'text-destructive')}>{e.name}</span>
-          <span className="font-mono text-xs text-muted-foreground">in {e.spanName}</span>
+        <div className="flex min-w-0 items-center gap-2 text-sm">
+          <span className={cn('truncate font-medium', e.severity === 'warning' ? 'text-warning' : 'text-destructive')}>{e.name}</span>
           <KindBadge kind={e.kind} />
         </div>
-        <div className="truncate text-xs text-muted-foreground">{e.message}</div>
+        <div className="truncate font-mono text-xs text-muted-foreground" title={e.spanName}>
+          in {e.spanName}
+        </div>
+        <div className="truncate text-xs text-muted-foreground" title={e.message}>
+          {e.message}
+        </div>
       </div>
       <div className="shrink-0 text-right text-xs">
         <div className="font-mono font-medium tabular-nums">{e.count}×</div>
@@ -126,13 +131,16 @@ function ErrorRow({ e, qs }: { e: ErrorGroup; qs: string }) {
 
 function RouteTable({ rows, mode, qs }: { rows: DigestRoute[]; mode: 'regression' | 'slow' | 'busy'; qs: string }) {
   return (
-    <table className="w-full text-sm">
+    // fixed layout: the number columns keep their width and long routes truncate instead of pushing them out
+    <table className="w-full table-fixed text-sm">
       <thead>
         <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
           <th className="h-8 pl-4 font-medium">Route</th>
-          <th className="h-8 px-3 text-right font-medium">Requests</th>
-          <th className="h-8 px-3 text-right font-medium">Errors</th>
-          <th className="h-8 pr-4 text-right font-medium">{mode === 'regression' ? 'p95 before → now' : 'p95'}</th>
+          <th className="h-8 w-20 px-3 text-right font-medium">Requests</th>
+          <th className="h-8 w-16 px-3 text-right font-medium">Errors</th>
+          <th className={cn('h-8 pr-4 text-right font-medium', mode === 'regression' ? 'w-52' : 'w-24')}>
+            {mode === 'regression' ? 'p95 before → now' : 'p95'}
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -144,10 +152,14 @@ function RouteTable({ rows, mode, qs }: { rows: DigestRoute[]; mode: 'regression
           return (
             <tr key={`${r.application}${r.method}${r.route}`} className="border-b last:border-0 hover:bg-accent/50">
               <td className="py-2 pl-4">
-                <Link href={`/traces?${q}`} className="flex min-w-0 items-center gap-2">
+                <Link
+                  href={`/traces?${q}`}
+                  className="flex min-w-0 items-center gap-2"
+                  title={`${r.method ? `${r.method} ` : ''}${r.route} · ${r.application}`}
+                >
                   {r.method && <MethodBadge method={r.method} />}
-                  <span className="truncate font-mono text-[13px] hover:underline">{r.route}</span>
-                  <AppBadge name={r.application} className="hidden lg:inline-flex" />
+                  <span className="min-w-0 truncate font-mono text-[13px] hover:underline">{r.route}</span>
+                  <AppBadge name={r.application} className="hidden shrink-0 @lg:inline-flex" />
                 </Link>
               </td>
               <td className="px-3 text-right font-mono text-xs tabular-nums">{r.count.toLocaleString()}</td>
@@ -280,7 +292,7 @@ function DigestInner() {
                   <RouteTable rows={d.regressions} mode="regression" qs={qs} />
                 </Section>
 
-                <div className="grid gap-4 xl:grid-cols-2">
+                <div className="grid gap-4 2xl:grid-cols-2">
                   <Section icon={Bug} title="Most frequent errors" count={d.topErrors.length} empty="No errors in this period.">
                     {d.topErrors.map((e) => (
                       <ErrorRow key={e.id} e={e} qs={qs} />
@@ -297,7 +309,8 @@ function DigestInner() {
             )}
           </div>
 
-          <div className="space-y-4">
+          {/* stays in view while the report scrolls */}
+          <div className="space-y-4 self-start lg:sticky lg:top-6">
             <Card className="overflow-hidden">
               <div className="flex items-center justify-between border-b px-4 py-2.5">
                 <span className="flex items-center gap-2 text-sm font-semibold">
